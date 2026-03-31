@@ -26,8 +26,12 @@
       background: #0f0f23;
       display: inline-block;
       line-height: 0;
-      max-width: 90vw;
-      max-height: 80vh;
+      width: 90vw;
+      height: 75vh;
+    }
+    #miniverse-container canvas {
+      width: 100% !important;
+      height: 100% !important;
     }
     #editor-wrapper #miniverse-container {
       border-color: #00ff88;
@@ -68,7 +72,7 @@
   <div id="miniverse-container"></div>
   <div class="status-bar" id="status-bar"></div>
   <p class="hint">
-  <b>Scroll</b> zoom · <b>+/-</b> zoom · <b>0</b> reset · <b>A</b> architect · <b>E</b> editor
+  <b>Drag</b> pan · <b>Scroll</b> zoom · <b>+/-</b> zoom · <b>F</b> fit all · <b>0</b> reset · <b>A</b> architect · <b>E</b> editor
 </p>
   <div id="tooltip">
     <div class="name"></div>
