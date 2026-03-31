@@ -108,6 +108,10 @@ async function main() {
     });
   }
 
+  // Canvas: use viewport-aware size so zoom-out doesn't lose resolution
+  const canvasW = Math.max(gridCols * tileSize, window.innerWidth);
+  const canvasH = Math.max(gridRows * tileSize, window.innerHeight);
+
   const mv = new Miniverse({
     container,
     world: WORLD_ID,
@@ -117,9 +121,9 @@ async function main() {
       url: 'ws://localhost:4321/ws',
     },
     citizens,
-    scale: 2,
-    width: gridCols * tileSize,
-    height: gridRows * tileSize,
+    scale: 1,
+    width: canvasW,
+    height: canvasH,
     sceneConfig,
     spriteSheets,
     objects: [],

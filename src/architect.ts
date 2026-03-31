@@ -2,7 +2,7 @@ import type { Miniverse } from '@miniverse/core';
 import { setZoom } from './zoom';
 
 const ARCHITECT_AGENT = 'architect';
-const ARCHITECT_TILE = { x: 9, y: 37 }; // Center of the office in tile coords (rows 37-38)
+const ARCHITECT_TILE = { x: 9, y: 36 }; // Center of the office in tile coords (rows 34-38)
 
 /**
  * Initialize the Architect's Office.
@@ -36,12 +36,17 @@ export function initArchitect(mv: Miniverse, serverUrl: string): void {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (e.key === 'a' || e.key === 'A') {
       const camera = (mv as any).renderer.camera;
+      const canvas = (mv as any).renderer.canvas;
       const tileSize = 32;
-      // Center camera on architect tile
-      const targetX = ARCHITECT_TILE.x * tileSize - (mv as any).renderer.canvas.width / (2 * camera.zoom);
-      const targetY = ARCHITECT_TILE.y * tileSize - (mv as any).renderer.canvas.height / (2 * camera.zoom);
-      camera.setPosition(targetX, targetY);
-      setZoom(2.0); // Zoom in to see the office
+      // Set zoom first so viewport calc is correct
+      setZoom(1.5);
+      const zoom = 1.5;
+      // Center camera on the architect zone (cols 4-14, rows 34-38 → center at col 9, row 36)
+      const worldX = ARCHITECT_TILE.x * tileSize;
+      const worldY = ARCHITECT_TILE.y * tileSize;
+      const camX = worldX - canvas.width / (2 * zoom);
+      const camY = worldY - canvas.height / (2 * zoom);
+      camera.snapTo(camX, camY);
     }
   });
 }

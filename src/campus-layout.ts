@@ -7,8 +7,8 @@
  *   Rows 10–19: Open Cowork (0-14) | CEO (15-22) | Huddle Pods (23-39)
  *   Rows 20–24: Snack (0-5) | Café (6-13) | Gaming (14-39)
  *   Rows 25–32: Terrace (0-14) | Green Area (15-39)
- *   Rows 33–36: Deadspace corridor
- *   Rows 37–39, Cols 4–14: Architect's Office (island)
+ *   Rows 33:    Deadspace
+ *   Rows 34–38, Cols 4–14: Architect's Office (island, surrounded by deadspace)
  */
 
 export const GRID_COLS = 40;
@@ -42,8 +42,8 @@ export const ZONES: ZoneDef[] = [
   { name: 'terrace',      rowStart: 26, rowEnd: 32, colStart: 1,  colEnd: 14, tile: 'rooftop_tile' },
   { name: 'green_area',   rowStart: 26, rowEnd: 32, colStart: 16, colEnd: 38, tile: 'grass_green' },
 
-  // Architect's Office — isolated island (rows 37-38)
-  { name: 'architect',    rowStart: 37, rowEnd: 38, colStart: 5,  colEnd: 13, tile: 'architect_floor' },
+  // Architect's Office — isolated island (rows 34-38, cols 4-14)
+  { name: 'architect',    rowStart: 34, rowEnd: 38, colStart: 4,  colEnd: 14, tile: 'architect_floor' },
 ];
 
 /** Corridors connecting zones — 2-tile wide paths */
@@ -110,6 +110,10 @@ export function buildFloorGrid(): string[][] {
       grid[r][c] = 'pool_water';
     }
   }
+
+  // Architect border ring (noc_dark around the island to make it visible against deadspace)
+  for (let c = 3; c <= 15; c++) { grid[33][c] = 'noc_dark'; grid[39][c] = 'noc_dark'; }
+  for (let r = 33; r <= 39; r++) { grid[r][3] = 'noc_dark'; grid[r][15] = 'noc_dark'; }
 
   return grid;
 }
