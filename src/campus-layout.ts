@@ -104,6 +104,13 @@ export function buildFloorGrid(): string[][] {
     }
   }
 
+  // Pool water (3×5 block inside green area)
+  for (let r = 28; r <= 30; r++) {
+    for (let c = 20; c <= 24; c++) {
+      grid[r][c] = 'pool_water';
+    }
+  }
+
   return grid;
 }
 
