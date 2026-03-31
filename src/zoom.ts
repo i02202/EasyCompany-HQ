@@ -31,6 +31,34 @@ export function initZoom(mv: Miniverse): void {
     }
   });
 
+  // Middle-click or right-click drag to pan
+  let isPanning = false;
+  let panStartX = 0, panStartY = 0;
+  let camStartX = 0, camStartY = 0;
+
+  canvas.addEventListener('mousedown', (e: MouseEvent) => {
+    if (e.button === 1 || e.button === 2) { // middle or right click
+      isPanning = true;
+      panStartX = e.clientX;
+      panStartY = e.clientY;
+      camStartX = camera.x;
+      camStartY = camera.y;
+      e.preventDefault();
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e: MouseEvent) => {
+    if (!isPanning) return;
+    const scale = parseFloat(canvas.style.width) / canvas.width;
+    const dx = (panStartX - e.clientX) / scale / currentZoom;
+    const dy = (panStartY - e.clientY) / scale / currentZoom;
+    camera.snapTo(camStartX + dx, camStartY + dy);
+  });
+
+  canvas.addEventListener('mouseup', () => { isPanning = false; });
+  canvas.addEventListener('mouseleave', () => { isPanning = false; });
+  canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); }); // disable right-click menu
+
   // Smooth zoom via render layer (runs every frame)
   mv.addLayer({
     order: -1, // Before everything
