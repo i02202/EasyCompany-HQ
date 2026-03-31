@@ -1,0 +1,673 @@
+{
+  "gridCols": 16,
+  "gridRows": 16,
+  "floor": [
+    [
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall"
+    ],
+    [
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall",
+      "main_wall"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "accent_floor_tile",
+      "accent_floor_tile",
+      "accent_floor_tile",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "accent_floor_tile",
+      "accent_floor_tile",
+      "accent_floor_tile",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "accent_floor_tile",
+      "accent_floor_tile",
+      "accent_floor_tile",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "accent_floor_tile",
+      "accent_floor_tile",
+      "accent_floor_tile",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ],
+    [
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor",
+      "main_floor"
+    ]
+  ],
+  "props": [
+    {
+      "id": "desk_monitor",
+      "x": 1,
+      "y": 2.5,
+      "w": 3,
+      "h": 2.5,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "desk_monitor_0_0",
+          "ox": 1,
+          "oy": 2,
+          "type": "work"
+        }
+      ]
+    },
+    {
+      "id": "ergonomic_chair",
+      "x": 2,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "layer": "above"
+    },
+    {
+      "id": "desk_monitor",
+      "x": 5,
+      "y": 2.5,
+      "w": 3,
+      "h": 2.5,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "desk_monitor_2_0",
+          "ox": 1,
+          "oy": 2,
+          "type": "work"
+        }
+      ]
+    },
+    {
+      "id": "ergonomic_chair",
+      "x": 6,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "layer": "above"
+    },
+    {
+      "id": "desk_monitor",
+      "x": 9,
+      "y": 2.5,
+      "w": 3,
+      "h": 2.5,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "desk_monitor_4_0",
+          "ox": 1,
+          "oy": 2,
+          "type": "work"
+        }
+      ]
+    },
+    {
+      "id": "ergonomic_chair",
+      "x": 10,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "layer": "above"
+    },
+    {
+      "id": "desk_monitor",
+      "x": 12,
+      "y": 2.5,
+      "w": 3,
+      "h": 2.5,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "desk_monitor_6_0",
+          "ox": 1,
+          "oy": 2,
+          "type": "work"
+        }
+      ]
+    },
+    {
+      "id": "ergonomic_chair",
+      "x": 13,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "layer": "above"
+    },
+    {
+      "id": "desk_monitor",
+      "x": 1,
+      "y": 9.5,
+      "w": 3,
+      "h": 2.5,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "desk_monitor_8_0",
+          "ox": 1,
+          "oy": 2,
+          "type": "work"
+        }
+      ]
+    },
+    {
+      "id": "ergonomic_chair",
+      "x": 2,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "above"
+    },
+    {
+      "id": "desk_monitor",
+      "x": 5,
+      "y": 9.5,
+      "w": 3,
+      "h": 2.5,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "desk_monitor_10_0",
+          "ox": 1,
+          "oy": 2,
+          "type": "work"
+        }
+      ]
+    },
+    {
+      "id": "ergonomic_chair",
+      "x": 6,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "above"
+    },
+    {
+      "id": "desk_monitor",
+      "x": 9,
+      "y": 9.5,
+      "w": 3,
+      "h": 2.5,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "desk_monitor_12_0",
+          "ox": 1,
+          "oy": 2,
+          "type": "work"
+        }
+      ]
+    },
+    {
+      "id": "ergonomic_chair",
+      "x": 10,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "above"
+    },
+    {
+      "id": "desk_monitor",
+      "x": 12,
+      "y": 9.5,
+      "w": 3,
+      "h": 2.5,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "desk_monitor_14_0",
+          "ox": 1,
+          "oy": 2,
+          "type": "work"
+        }
+      ]
+    },
+    {
+      "id": "ergonomic_chair",
+      "x": 13,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "above"
+    },
+    {
+      "id": "lounge_sofa",
+      "x": 5.5,
+      "y": 6,
+      "w": 4,
+      "h": 2,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "lounge_sofa_16_0",
+          "ox": 2,
+          "oy": 2,
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "id": "lounge_sofa",
+      "x": 9,
+      "y": 6,
+      "w": 4,
+      "h": 2,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "lounge_sofa_17_0",
+          "ox": 2,
+          "oy": 2,
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "id": "lounge_sofa",
+      "x": 1,
+      "y": 6,
+      "w": 4,
+      "h": 2,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "lounge_sofa_18_0",
+          "ox": 2,
+          "oy": 2,
+          "type": "rest"
+        }
+      ]
+    },
+    {
+      "id": "coffee_table",
+      "x": 7,
+      "y": 6.5,
+      "w": 2,
+      "h": 2,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "coffee_table_19_0",
+          "ox": 1,
+          "oy": 2,
+          "type": "social"
+        }
+      ]
+    },
+    {
+      "id": "tall_plant",
+      "x": 0.5,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "layer": "below"
+    },
+    {
+      "id": "tall_plant",
+      "x": 14.5,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "layer": "below"
+    },
+    {
+      "id": "server_rack",
+      "x": 1,
+      "y": 1,
+      "w": 1,
+      "h": 1.5,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "server_rack_22_0",
+          "ox": 0.5,
+          "oy": 1.5,
+          "type": "utility"
+        }
+      ]
+    },
+    {
+      "id": "server_rack",
+      "x": 14,
+      "y": 1,
+      "w": 1,
+      "h": 1.5,
+      "layer": "below",
+      "anchors": [
+        {
+          "name": "server_rack_23_0",
+          "ox": 0.5,
+          "oy": 1.5,
+          "type": "utility"
+        }
+      ]
+    },
+    {
+      "id": "data_display_wall",
+      "x": 4.5,
+      "y": 0.5,
+      "w": 3,
+      "h": 2,
+      "layer": "below"
+    },
+    {
+      "id": "company_logo_wall",
+      "x": 1.5,
+      "y": 0.5,
+      "w": 2,
+      "h": 2,
+      "layer": "below"
+    },
+    {
+      "id": "whiteboard_glass",
+      "x": 9.5,
+      "y": 0.5,
+      "w": 3,
+      "h": 2,
+      "layer": "below"
+    }
+  ],
+  "characters": {
+    "morty": "desk_monitor_0_0",
+    "dexter": "desk_monitor_2_0",
+    "nova": "desk_monitor_4_0",
+    "rio": "desk_monitor_6_0",
+    "sage": "desk_monitor_8_0",
+    "ember": "desk_monitor_10_0",
+    "flux": "desk_monitor_12_0",
+    "pixel": "desk_monitor_14_0"
+  },
+  "wanderPoints": [
+    {
+      "name": "wander_center_top",
+      "x": 7,
+      "y": 5
+    },
+    {
+      "name": "wander_center_bottom",
+      "x": 7,
+      "y": 13
+    },
+    {
+      "name": "wander_left_path",
+      "x": 3,
+      "y": 8
+    },
+    {
+      "name": "wander_right_path",
+      "x": 12,
+      "y": 8
+    }
+  ],
+  "propImages": {
+    "desk_monitor": "/world_assets/props/prop_0_desk_monitor.png",
+    "ergonomic_chair": "/world_assets/props/prop_1_ergonomic_chair.png",
+    "lounge_sofa": "/world_assets/props/prop_2_lounge_sofa.png",
+    "coffee_table": "/world_assets/props/prop_3_coffee_table.png",
+    "tall_plant": "/world_assets/props/prop_4_tall_plant.png",
+    "server_rack": "/world_assets/props/prop_5_server_rack.png",
+    "data_display_wall": "/world_assets/props/prop_6_data_display_wall.png",
+    "company_logo_wall": "/world_assets/props/prop_7_company_logo_wall.png",
+    "whiteboard_glass": "/world_assets/props/prop_8_whiteboard_glass.png"
+  },
+  "tiles": {
+    "main_floor": "/world_assets/tiles/main_floor.png",
+    "main_wall": "/world_assets/tiles/main_wall.png",
+    "accent_floor_tile": "/world_assets/tiles/accent_floor_tile.png",
+    "accent_wall_panel": "/world_assets/tiles/accent_wall_panel.png"
+  }
+}
