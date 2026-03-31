@@ -1,5 +1,7 @@
 import { Miniverse, PropSystem, Editor, createStandardSpriteConfig } from '@miniverse/core';
 import type { SceneConfig, SpriteSheetConfig, CitizenDef } from '@miniverse/core';
+import { initZoom } from './zoom';
+import { initArchitect } from './architect';
 
 const WORLD_ID = 'easy-company';
 const basePath = `/worlds/${WORLD_ID}`;
@@ -68,9 +70,25 @@ async function main() {
   const sceneConfig = buildSceneConfig(gridCols, gridRows, sceneData?.floor, sceneData?.tiles);
   const tileSize = 32;
 
-  // Auto-discover agents from server and available sprites
-  const availableSprites: string[] = await fetch('/api/citizens').then(r => r.json()).catch(() => ['morty', 'dexter', 'nova', 'rio']);
-  const serverAgents: { agent: string; name: string }[] = await fetch('http://localhost:4321/api/agents')
+  // ─── Sprite mapping: role → custom sprite, fallback to agent_XX pool ───
+  const ROLE_SPRITES: Record<string, string> = {
+    ceo: 'ceo', cto: 'cto', cfo: 'cfo', trader: 'trader',
+    researcher: 'researcher', hr: 'hr', security: 'security', media: 'media',
+  };
+  const GENERIC_SPRITES = Array.from({ length: 12 }, (_, i) =>
+    `agent_${String(i + 1).padStart(2, '0')}`
+  );
+  let nextGenericIdx = 0;
+
+  function getSpriteForAgent(agentId: string): string {
+    const role = ROLE_SPRITES[agentId];
+    if (role) return role;
+    const sprite = GENERIC_SPRITES[nextGenericIdx % GENERIC_SPRITES.length];
+    nextGenericIdx++;
+    return sprite;
+  }
+
+  const serverAgents: { agent: string; name: string; state?: string }[] = await fetch('http://localhost:4321/api/agents')
     .then(r => r.json())
     .then((d: any) => d.agents ?? [])
     .catch(() => []);
@@ -80,8 +98,8 @@ async function main() {
 
   for (let i = 0; i < serverAgents.length; i++) {
     const agent = serverAgents[i];
-    const spriteAsset = availableSprites[i % availableSprites.length];
-    spriteSheets[agent.agent] = charSprites(spriteAsset);
+    const spriteKey = getSpriteForAgent(agent.agent);
+    spriteSheets[agent.agent] = charSprites(spriteKey);
     citizens.push({
       agentId: agent.agent,
       name: agent.name || agent.agent,
@@ -136,6 +154,9 @@ async function main() {
   props.onSave(syncProps);
 
   await mv.start();
+
+  initZoom(mv);
+  initArchitect(mv, 'http://localhost:4321');
 
   mv.addLayer({ order: 5, render: (ctx) => props.renderBelow(ctx) });
   mv.addLayer({ order: 15, render: (ctx) => props.renderAbove(ctx) });
