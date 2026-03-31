@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>my-miniverse</title>
+  <title>Easy Company HQ</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -26,7 +26,8 @@
       background: #0f0f23;
       display: inline-block;
       line-height: 0;
-      transition: border-color 0.15s, border-radius 0.15s;
+      max-width: 90vw;
+      max-height: 80vh;
     }
     #editor-wrapper #miniverse-container {
       border-color: #00ff88;
@@ -62,11 +63,13 @@
   </style>
 </head>
 <body>
-  <h1>my-miniverse</h1>
-  <p class="subtitle">powered by miniverse</p>
+  <h1>easy company hq</h1>
+  <p class="subtitle">real-time agent visualization</p>
   <div id="miniverse-container"></div>
   <div class="status-bar" id="status-bar"></div>
-  <p class="hint">Press <b>E</b> to toggle editor</p>
+  <p class="hint">
+  <b>Scroll</b> zoom · <b>+/-</b> zoom · <b>0</b> reset · <b>A</b> architect · <b>E</b> editor
+</p>
   <div id="tooltip">
     <div class="name"></div>
     <div class="state"></div>
