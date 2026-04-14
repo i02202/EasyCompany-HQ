@@ -280,7 +280,7 @@
   <h1>Campus Factory AI</h1>
   <span class="status-badge status-idle" id="statusBadge">Idle</span>
   <div class="header-stats">
-    <span><span class="stat-val" id="hdrTasks">0/5</span> tasks</span>
+    <span><span class="stat-val" id="hdrTasks">0/6</span> tasks</span>
     <span><span class="stat-val" id="hdrProps">0</span> props</span>
     <span><span class="stat-val" id="hdrZones">0</span> zones</span>
     <span id="hdrTimer" style="color:var(--dim)">--:--</span>
@@ -298,7 +298,7 @@
 <div class="main">
   <!-- ─── LEFT COLUMN: Agents + System ─── -->
   <div class="col">
-    <div class="section-title">Agents <span class="badge" id="agentBadge">0/5</span></div>
+    <div class="section-title">Agents <span class="badge" id="agentBadge">0/6</span></div>
     <div id="agentList"></div>
 
     <div class="section-title">System Status</div>
@@ -403,11 +403,12 @@
 <script>
 // ─── Configuration ──────────────────────────────────────
 const AGENTS = [
-  { id: 'researcher',   name: 'Researcher',   role: 'Office Design Research', llm: 'Claude' },
-  { id: 'architect',    name: 'Architect',     role: 'Campus Layout Design',  llm: 'Claude' },
-  { id: 'art_director', name: 'Art Director',  role: 'Visual Style & Textures', llm: 'Claude' },
-  { id: 'qa_reviewer',  name: 'QA Reviewer',   role: 'Quality Validation',    llm: 'Claude' },
-  { id: 'scrum_master', name: 'Scrum Master',  role: 'Coordination & Report', llm: 'Ollama' },
+  { id: 'researcher',        name: 'Researcher',        role: 'Office Design Research',    llm: 'Claude' },
+  { id: 'architect',         name: 'Architect',         role: 'Campus Layout Design',      llm: 'Claude' },
+  { id: 'art_director',      name: 'Art Director',      role: 'Visual Style & Textures',   llm: 'Claude' },
+  { id: 'interior_designer', name: 'Interior Designer', role: 'Spatial Layout Optimizer',   llm: 'Claude' },
+  { id: 'qa_reviewer',       name: 'QA Reviewer',       role: 'Quality Validation',        llm: 'Claude' },
+  { id: 'scrum_master',      name: 'Scrum Master',      role: 'Coordination & Report',     llm: 'Ollama' },
 ];
 
 const ZONE_COLORS = {
@@ -488,7 +489,7 @@ function setAgentActive(agentName) {
     card.classList.add('active');
     agentStates[matchId] = { status: 'active', startedAt: Date.now() };
   }
-  document.getElementById('agentBadge').textContent = `${completedAgents}/5`;
+  document.getElementById('agentBadge').textContent = `${completedAgents}/6`;
 }
 
 function setAgentDone(agentName) {
@@ -500,7 +501,7 @@ function setAgentDone(agentName) {
     card.classList.add('done');
     completedAgents++;
   }
-  document.getElementById('agentBadge').textContent = `${completedAgents}/5`;
+  document.getElementById('agentBadge').textContent = `${completedAgents}/6`;
 }
 
 function setAgentDetail(agentName, detail) {

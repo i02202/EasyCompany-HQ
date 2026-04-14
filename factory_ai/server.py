@@ -41,7 +41,7 @@ crew_state = {
     "current_task": None,
     "progress": 0,          # 0-100
     "tasks_completed": 0,
-    "tasks_total": 5,
+    "tasks_total": 6,
     "start_time": None,
     "events_count": 0,
     "training": {
