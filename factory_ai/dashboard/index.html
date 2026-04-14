@@ -530,6 +530,12 @@ function renderIsoGrid() {
 
 async function loadZoneProps() {
   try {
+    // Ensure zoneData is loaded first
+    if (!Object.keys(zoneData).length) {
+      const zr = await fetch('/api/zones');
+      zoneData = await zr.json();
+    }
+
     const r = await fetch('/api/zones/props');
     zonePropData = await r.json();
 
@@ -538,34 +544,39 @@ async function loadZoneProps() {
     let totalProps = 0;
     let populatedZones = 0;
     for (const [zname, zdata] of Object.entries(zonePropData)) {
-      totalProps += zdata.count;
-      if (zdata.count > 0) populatedZones++;
+      const cnt = zdata.count || 0;
+      totalProps += cnt;
+      if (cnt > 0) populatedZones++;
       for (const pos of (zdata.positions || [])) {
-        const r = Math.round(pos.y);
-        const c = Math.round(pos.x);
-        if (r >= 1 && r <= 40 && c >= 1 && c <= 40) {
-          propPositionMap[`${r}-${c}`] = pos.id;
+        const row = Math.round(pos.y);
+        const col = Math.round(pos.x);
+        if (row >= 1 && row <= 40 && col >= 1 && col <= 40) {
+          propPositionMap[`${row}-${col}`] = pos.id;
         }
       }
     }
 
-    document.getElementById('hdrProps').textContent = totalProps;
+    document.getElementById('hdrProps').textContent = totalProps || 0;
     document.getElementById('hdrZones').textContent = `${populatedZones}/13`;
     document.getElementById('zonePropTotal').textContent = `${totalProps} props`;
 
     renderIsoGrid();  // Re-render with prop dots
     renderZoneCards();
-  } catch(e) {}
+  } catch(e) { console.error('loadZoneProps error:', e); }
 }
 
 function renderZoneCards() {
   const container = document.getElementById('zoneCards');
+  // Use zonePropData keys if zoneData isn't loaded yet
+  const zoneKeys = Object.keys(zoneData).length ? Object.keys(zoneData) : Object.keys(zonePropData);
   let html = '';
-  for (const [zname, spec] of Object.entries(zoneData)) {
+  for (const zname of zoneKeys) {
+    const spec = zoneData[zname];
     const pdata = zonePropData[zname] || { count: 0, props: {} };
-    const r0 = spec.rows[0], r1 = spec.rows[1], c0 = spec.cols[0], c1 = spec.cols[1];
-    const area = (r1 - r0 + 1) * (c1 - c0 + 1);
-    const density = pdata.count / area;
+    const r0 = spec ? spec.rows[0] : 0, r1 = spec ? spec.rows[1] : 0;
+    const c0 = spec ? spec.cols[0] : 0, c1 = spec ? spec.cols[1] : 0;
+    const area = Math.max((r1 - r0 + 1) * (c1 - c0 + 1), 1);
+    const density = (pdata.count || 0) / area;
     const densityClass = density < 0.05 ? 'density-sparse' : (density > 0.3 ? 'density-over' : 'density-ok');
     const densityPct = Math.min(density / 0.3 * 100, 100);
     const propChips = Object.entries(pdata.props || {}).map(([id, cnt]) =>
@@ -827,31 +838,44 @@ async function fetchTrainingDetail() {
   try {
     const r = await fetch('/api/training/detail');
     const d = await r.json();
+    console.log('Training detail:', d);
 
-    document.getElementById('ftStatus').textContent = d.status || 'Idle';
-    document.getElementById('ftStatus').className = `v ${d.status === 'complete' ? 'good' : ''}`;
+    // Status — show "complete" if we have adapter+gguf+model, even if crew status is idle
+    const pipelineDone = d.adapter_exists && d.gguf_exists && d.model_registered;
+    const statusText = pipelineDone ? 'Complete' : (d.status || 'Idle');
+    document.getElementById('ftStatus').textContent = statusText;
+    document.getElementById('ftStatus').className = `v ${pipelineDone ? 'good' : ''}`;
 
-    document.getElementById('ftDataset').textContent = `${d.dataset_size || 0} examples`;
-    document.getElementById('ftDataset').className = `v ${(d.dataset_size || 0) > 0 ? 'good' : ''}`;
+    // Dataset
+    const dsSize = d.dataset_size || 0;
+    document.getElementById('ftDataset').textContent = `${dsSize} examples`;
+    document.getElementById('ftDataset').className = `v ${dsSize > 0 ? 'good' : ''}`;
 
-    document.getElementById('ftChatML').textContent = `${d.chatml_size || 0} formatted`;
-    document.getElementById('ftChatML').className = `v ${(d.chatml_size || 0) > 0 ? 'good' : ''}`;
+    // ChatML
+    const chatmlSize = d.chatml_size || 0;
+    document.getElementById('ftChatML').textContent = `${chatmlSize} formatted`;
+    document.getElementById('ftChatML').className = `v ${chatmlSize > 0 ? 'good' : ''}`;
 
+    // LoRA Adapter
     const checkpoints = d.checkpoints || [];
-    document.getElementById('ftAdapter').textContent = checkpoints.length ? checkpoints[checkpoints.length-1] : 'None';
-    document.getElementById('ftAdapter').className = `v ${checkpoints.length ? 'good' : 'warn'}`;
+    const adapterOk = d.adapter_exists || checkpoints.length > 0;
+    document.getElementById('ftAdapter').textContent = adapterOk ? (checkpoints.length ? checkpoints[checkpoints.length-1] : 'Present') : 'None';
+    document.getElementById('ftAdapter').className = `v ${adapterOk ? 'good' : 'warn'}`;
 
-    document.getElementById('ftGGUF').textContent = d.gguf_exists ? `${d.gguf_size_mb}MB` : 'Not exported';
+    // GGUF
+    document.getElementById('ftGGUF').textContent = d.gguf_exists ? `${d.gguf_size_mb} MB` : 'Not exported';
     document.getElementById('ftGGUF').className = `v ${d.gguf_exists ? 'good' : 'warn'}`;
 
+    // Ollama registration
     document.getElementById('ftOllama').textContent = d.model_registered ? 'campus-expert' : 'Not registered';
     document.getElementById('ftOllama').className = `v ${d.model_registered ? 'good' : 'warn'}`;
 
+    // Loss chart
     if (d.loss != null) {
       document.getElementById('lossChart').style.display = '';
       updateTrainingProgress({ loss: d.loss, epoch: d.epochs_done, epochs_total: d.epochs_total });
     }
-  } catch(e) {}
+  } catch(e) { console.error('fetchTrainingDetail error:', e); }
 }
 
 function updateTrainingFromState(t) {
