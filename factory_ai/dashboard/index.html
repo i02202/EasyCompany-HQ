@@ -139,20 +139,37 @@
   .construction-view { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
   .iso-grid-wrap {
     background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-    padding: 8px; position: relative; flex: 1; min-height: 300px;
+    padding: 8px; position: relative; flex: 1; min-height: 400px;
+    overflow: auto;
   }
   .iso-grid {
-    display: grid; grid-template-columns: repeat(40, 1fr); grid-template-rows: repeat(40, 1fr);
-    gap: 0; width: 100%; height: 100%;
+    display: grid; grid-template-columns: repeat(40, 16px); grid-template-rows: repeat(40, 16px);
+    gap: 0; width: fit-content; margin: 0 auto;
+    position: relative;
   }
   .iso-cell {
     position: relative; border-radius: 1px;
-    transition: background .3s, box-shadow .3s;
+    width: 16px; height: 16px;
+    transition: background .3s;
+    cursor: default;
   }
-  .iso-cell.has-prop { box-shadow: inset 0 0 0 1px rgba(108,92,231,.4); }
-  .iso-cell.has-prop::after {
-    content: ''; position: absolute; inset: 20%; border-radius: 2px;
-    background: var(--accent); opacity: .7;
+  .iso-cell:hover { outline: 1px solid var(--accent); z-index: 3; }
+  .iso-cell.has-prop {
+    box-shadow: none;
+  }
+  .iso-cell .prop-icon {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; line-height: 1; z-index: 2;
+    pointer-events: none; filter: drop-shadow(0 0 2px rgba(0,0,0,.8));
+  }
+  /* Zone label overlay */
+  .zone-label {
+    position: absolute; z-index: 5; pointer-events: none;
+    font-size: 9px; font-weight: 700; color: #fff;
+    text-shadow: 0 0 4px #000, 0 0 8px #000;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    white-space: nowrap; opacity: .85;
   }
 
   /* Zone detail cards */
@@ -462,11 +479,12 @@ function setAgentActive(agentName) {
   )?.id;
   if (!matchId) return;
 
-  // Deactivate current active
+  // Deactivate current active (but go through setAgentDone to track count)
   document.querySelectorAll('.agent-card.active').forEach(el => {
     if (el.id !== `agent-${matchId}`) {
-      el.classList.remove('active');
-      el.classList.add('done');
+      const prevId = el.dataset.agent;
+      const prevAgent = AGENTS.find(a => a.id === prevId);
+      if (prevAgent) setAgentDone(prevAgent.name);
     }
   });
 
@@ -497,6 +515,64 @@ function setAgentDetail(agentName, detail) {
   if (el) el.textContent = detail.substring(0, 80);
 }
 
+// ─── Prop Icon Mapping ────────────────────────────
+const PROP_ICONS = {
+  // Seating
+  pod_chair:'🪑', ergonomic_chair:'💺', meeting_chair:'🪑', bistro_chair:'🪑',
+  bar_stool:'🪑', gaming_chair:'🎮', lounge_chair:'🛋', bean_bag:'🫘',
+  mobile_stool:'🪑', drafting_stool:'🪑', garden_bench:'🪑',
+  // Desks & Tables
+  standing_desk:'🖥', desk_monitor:'🖥', drafting_table:'📐', cafe_table:'☕',
+  round_table:'⭕', executive_desk:'🖥', hot_desk:'🖥', l_counter:'🍽',
+  outdoor_dining_set:'🍽', bistro_table:'☕',
+  // Tech
+  server_rack:'🗄', gaming_pc_station:'🎮', monitor_workstation:'🖥',
+  noc_screen_wall:'📺', projection_screen:'📽', data_display_wall:'📊',
+  av_control_booth:'🎛', alert_dashboard:'🚨', communication_panel:'📡',
+  cooling_unit:'❄', ups_cabinet:'🔋', biometric_panel:'🔒',
+  monitoring_desk:'🖥', monitoring_wall:'📺', noc_desk:'🖥',
+  // Plants & Nature
+  tall_plant:'🌿', mature_tree:'🌳', planter_varied:'🪴',
+  flower_bed:'🌸', vine_trellis:'🌿', herb_garden:'🌱',
+  zen_rock_arrangement:'🪨',
+  // Walls & Structure
+  huddle_glass_wall:'🔲', whiteboard_wall:'📋', phone_booth:'📞',
+  blueprint_storage:'📁', material_library:'📚', bookshelf:'📚',
+  // Food & Drink
+  espresso_machine:'☕', commercial_fridge:'🧊', microwave:'🍳',
+  snack_display:'🍪', water_station:'💧', smoothie_bar:'🥤',
+  vending_machine:'🥫',
+  // Entertainment
+  arcade_cabinet:'🕹', pool_table:'🎱', foosball_table:'⚽',
+  vr_station:'🥽', console_station:'🎮', big_tv:'📺',
+  // Audio/Visual
+  ceiling_speaker:'🔊', lighting_control:'💡', stage_lighting:'💡',
+  podium:'🎤', auditorium_seats:'💺',
+  // Outdoor
+  umbrella:'☂', outdoor_lighting:'💡', hammock:'🏖',
+  fire_pit:'🔥', pergola:'🏗',
+  // Misc
+  sticky_note_dispenser:'📝', sprint_board:'📋', war_table:'🗺',
+  cork_board:'📌', presentation_display:'📊',
+};
+
+function getPropIcon(propId) {
+  if (PROP_ICONS[propId]) return PROP_ICONS[propId];
+  // Category fallback
+  if (propId.includes('chair') || propId.includes('seat') || propId.includes('stool') || propId.includes('bench')) return '🪑';
+  if (propId.includes('desk') || propId.includes('table') || propId.includes('counter')) return '🖥';
+  if (propId.includes('plant') || propId.includes('tree') || propId.includes('garden') || propId.includes('green')) return '🌿';
+  if (propId.includes('screen') || propId.includes('monitor') || propId.includes('display') || propId.includes('tv')) return '📺';
+  if (propId.includes('rack') || propId.includes('server') || propId.includes('cabinet')) return '🗄';
+  if (propId.includes('wall') || propId.includes('glass') || propId.includes('partition')) return '🔲';
+  if (propId.includes('light') || propId.includes('lamp')) return '💡';
+  if (propId.includes('speaker') || propId.includes('audio')) return '🔊';
+  if (propId.includes('book') || propId.includes('storage') || propId.includes('shelf')) return '📚';
+  if (propId.includes('game') || propId.includes('arcade') || propId.includes('console')) return '🎮';
+  if (propId.includes('food') || propId.includes('snack') || propId.includes('coffee') || propId.includes('fridge')) return '🍳';
+  return '◆';
+}
+
 // ─── Zone Grid (Construction View) ────────────────
 async function loadZoneGrid() {
   try {
@@ -509,26 +585,47 @@ async function loadZoneGrid() {
 function renderIsoGrid() {
   const grid = document.getElementById('isoGrid');
   const zoneLookup = {};
+  const zoneCenters = {};  // zone → {sumR, sumC, count}
+
   for (const [name, spec] of Object.entries(zoneData)) {
+    const midR = (spec.rows[0] + spec.rows[1]) / 2;
+    const midC = (spec.cols[0] + spec.cols[1]) / 2;
+    zoneCenters[name] = { r: midR, c: midC };
     for (let r = spec.rows[0]; r <= spec.rows[1]; r++) {
       for (let c = spec.cols[0]; c <= spec.cols[1]; c++) {
         zoneLookup[`${r}-${c}`] = name;
       }
     }
   }
+
   let html = '';
   for (let r = 1; r <= 40; r++) {
     for (let c = 1; c <= 40; c++) {
       const key = `${r}-${c}`;
       const zone = zoneLookup[key];
       const color = zone ? ZONE_COLORS[zone] || '#222' : '#111';
-      const hasProp = propPositionMap[key];
-      const cls = hasProp ? 'iso-cell has-prop' : 'iso-cell';
-      const title = zone ? `${ZONE_NAMES[zone]} (${r},${c})${hasProp ? ' [' + hasProp + ']' : ''}` : `corridor (${r},${c})`;
-      html += `<div class="${cls}" style="background:${color}" title="${title}"></div>`;
+      const propId = propPositionMap[key];
+      const cls = propId ? 'iso-cell has-prop' : 'iso-cell';
+      const title = zone
+        ? `${ZONE_NAMES[zone]} (${r},${c})${propId ? ' — ' + propId : ''}`
+        : `corridor (${r},${c})`;
+      const icon = propId ? `<span class="prop-icon">${getPropIcon(propId)}</span>` : '';
+      html += `<div class="${cls}" style="background:${color}" title="${title}">${icon}</div>`;
     }
   }
   grid.innerHTML = html;
+
+  // Add zone name labels overlaid on grid
+  for (const [name, center] of Object.entries(zoneCenters)) {
+    const label = document.createElement('div');
+    label.className = 'zone-label';
+    label.textContent = ZONE_NAMES[name] || name;
+    // Position at center of zone (each cell is 16px)
+    label.style.left = ((center.c - 1) * 16) + 'px';
+    label.style.top = ((center.r - 1) * 16) + 'px';
+    label.style.transform = 'translate(-50%, -50%)';
+    grid.appendChild(label);
+  }
 }
 
 async function loadZoneProps() {
@@ -825,14 +922,19 @@ async function fetchSystemInfo() {
     document.getElementById('sysModelsCount').textContent = models.length;
     document.getElementById('sysModelsList').textContent = models.map(m => `${m.name} (${m.size_gb}GB)`).join(', ') || 'None';
 
-    // API Keys (check from server-side - we can infer from model config)
+    // API Keys — DeerFlow uses HTTP fallback, check if reachable
+    let deerflowOk = false;
+    try {
+      const df = await fetch('http://localhost:8422/api/v0/health', { signal: AbortSignal.timeout(2000) });
+      deerflowOk = df.ok;
+    } catch(e) {}
     const apis = document.getElementById('apiKeysList');
     apis.innerHTML = [
       { name: 'Anthropic', ok: true },
       { name: 'Ollama', ok: d.ollama_running },
       { name: 'Telegram', ok: true },
-      { name: 'DeerFlow', ok: false },
-    ].map(a => `<div class="api-row"><div class="api-dot ${a.ok ? 'ok' : 'missing'}"></div>${a.name}</div>`).join('');
+      { name: 'DeerFlow', ok: deerflowOk, label: deerflowOk ? '' : '(HTTP fallback)' },
+    ].map(a => `<div class="api-row"><div class="api-dot ${a.ok ? 'ok' : 'missing'}"></div>${a.name}${a.label ? ' <span style="color:var(--dim);font-size:9px">' + a.label + '</span>' : ''}</div>`).join('');
   } catch(e) {}
 }
 
