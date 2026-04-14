@@ -392,3 +392,8 @@ async def serve_dashboard():
 # Mount static files if directory exists
 if DASHBOARD_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(DASHBOARD_DIR)), name="static")
+
+# Serve tile assets for the construction canvas
+ASSETS_DIR = PROJECT_ROOT / "assets" / "tiles"
+if ASSETS_DIR.exists():
+    app.mount("/assets/tiles", StaticFiles(directory=str(ASSETS_DIR)), name="tiles")
