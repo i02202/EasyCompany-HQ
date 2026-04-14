@@ -482,8 +482,11 @@ function setAgentDone(agentName) {
   const matchId = AGENTS.find(a => agentName.toLowerCase().includes(a.name.toLowerCase()))?.id;
   if (!matchId) return;
   const card = document.getElementById(`agent-${matchId}`);
-  if (card) { card.classList.remove('active'); card.classList.add('done'); }
-  completedAgents++;
+  if (card && !card.classList.contains('done')) {
+    card.classList.remove('active');
+    card.classList.add('done');
+    completedAgents++;
+  }
   document.getElementById('agentBadge').textContent = `${completedAgents}/5`;
 }
 
