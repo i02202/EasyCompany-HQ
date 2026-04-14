@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campus Factory AI — Dashboard</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a2e;
+    --surface3: #222240;
+    --border: #2a2a3e;
+    --text: #e0e0f0;
+    --dim: #8888aa;
+    --accent: #6c5ce7;
+    --green: #00b894;
+    --orange: #fdcb6e;
+    --red: #e17055;
+    --blue: #74b9ff;
+    --cyan: #00cec9;
+    --pink: #fd79a8;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; overflow: hidden;
+  }
+
+  /* ─── Header ─── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex; align-items: center; gap: 12px;
+    height: 48px;
+  }
+  header h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
+  .status-badge {
+    padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+  .status-idle { background: var(--border); color: var(--dim); }
+  .status-running { background: #00b89422; color: var(--green); animation: pulse-badge 2s infinite; }
+  .status-paused_for_review { background: #fdcb6e22; color: var(--orange); }
+  .status-complete { background: #6c5ce722; color: var(--accent); }
+  .status-error { background: #e1705522; color: var(--red); }
+  @keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:.7} }
+
+  .header-stats { display: flex; gap: 16px; font-size: 12px; color: var(--dim); margin-left: 12px; }
+  .header-stats .stat-val { color: var(--text); font-weight: 600; }
+  header .controls { margin-left: auto; display: flex; gap: 6px; }
+  button {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); cursor: pointer;
+    font-size: 12px; transition: all .15s;
+  }
+  button:hover { background: var(--accent); border-color: var(--accent); }
+  button.danger:hover { background: var(--red); border-color: var(--red); }
+  button.sm { padding: 4px 10px; font-size: 11px; }
+
+  /* ─── Main Grid: 3 columns ─── */
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr 320px;
+    height: calc(100vh - 48px);
+    background: var(--border);
+    gap: 1px;
+  }
+  .col { background: var(--surface); overflow-y: auto; display: flex; flex-direction: column; }
+  .section-title {
+    padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--dim);
+    text-transform: uppercase; letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--surface); z-index: 2;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .section-title .badge {
+    padding: 1px 6px; border-radius: 8px; font-size: 10px;
+    background: var(--surface2); color: var(--dim);
+  }
+
+  /* ─── Left: Agents + System ─── */
+  .agent-card {
+    padding: 10px 12px; border-left: 3px solid var(--border);
+    transition: all .3s; position: relative;
+  }
+  .agent-card + .agent-card { border-top: 1px solid var(--border); }
+  .agent-card.active { border-left-color: var(--accent); background: #6c5ce708; }
+  .agent-card.active .agent-name::after {
+    content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green); margin-left: 6px; animation: blink 1s infinite;
+  }
+  .agent-card.done { border-left-color: var(--green); opacity: .65; }
+  .agent-card.error { border-left-color: var(--red); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .agent-name { font-weight: 600; font-size: 13px; }
+  .agent-role { font-size: 11px; color: var(--dim); margin-top: 2px; }
+  .agent-detail { font-size: 10px; color: var(--cyan); margin-top: 4px; font-family: monospace; }
+  .agent-elapsed { font-size: 10px; color: var(--dim); position: absolute; right: 12px; top: 10px; }
+
+  /* System status panel */
+  .sys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+  .sys-card {
+    background: var(--surface); padding: 10px 12px;
+  }
+  .sys-card .label { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; }
+  .sys-card .value { font-size: 14px; font-weight: 600; margin-top: 2px; }
+  .sys-card .sub { font-size: 10px; color: var(--dim); margin-top: 1px; }
+  .online { color: var(--green); }
+  .offline { color: var(--red); }
+
+  /* VRAM bar */
+  .vram-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 4px; }
+  .vram-fill { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--green), var(--orange)); }
+
+  /* API keys status */
+  .api-row { display: flex; align-items: center; gap: 6px; padding: 4px 12px; font-size: 11px; }
+  .api-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .api-dot.ok { background: var(--green); }
+  .api-dot.missing { background: var(--red); }
+
+  /* ─── Center: Tabs (Construction / Event Log / Outputs) ─── */
+  .tab-bar {
+    display: flex; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--surface); z-index: 2;
+  }
+  .tab {
+    padding: 8px 16px; font-size: 12px; font-weight: 600; color: var(--dim);
+    cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; flex: 1; overflow-y: auto; }
+  .tab-content.active { display: flex; flex-direction: column; }
+
+  /* Construction view */
+  .construction-view { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .iso-grid-wrap {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px; position: relative; flex: 1; min-height: 300px;
+  }
+  .iso-grid {
+    display: grid; grid-template-columns: repeat(40, 1fr); grid-template-rows: repeat(40, 1fr);
+    gap: 0; width: 100%; height: 100%;
+  }
+  .iso-cell {
+    position: relative; border-radius: 1px;
+    transition: background .3s, box-shadow .3s;
+  }
+  .iso-cell.has-prop { box-shadow: inset 0 0 0 1px rgba(108,92,231,.4); }
+  .iso-cell.has-prop::after {
+    content: ''; position: absolute; inset: 20%; border-radius: 2px;
+    background: var(--accent); opacity: .7;
+  }
+
+  /* Zone detail cards */
+  .zone-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .zone-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px; cursor: pointer; transition: all .2s;
+  }
+  .zone-card:hover { border-color: var(--accent); }
+  .zone-card.selected { border-color: var(--accent); background: #6c5ce710; }
+  .zone-card-name { font-size: 12px; font-weight: 600; }
+  .zone-card-stats { display: flex; gap: 8px; margin-top: 4px; font-size: 10px; color: var(--dim); }
+  .zone-card-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 6px; }
+  .zone-card-fill { height: 3px; border-radius: 2px; transition: width .5s; }
+  .density-ok { background: var(--green); }
+  .density-sparse { background: var(--orange); }
+  .density-over { background: var(--red); }
+
+  /* Props list inside zone detail */
+  .prop-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .prop-chip {
+    padding: 2px 6px; border-radius: 4px; font-size: 10px;
+    background: var(--surface3); color: var(--text); font-family: monospace;
+  }
+  .prop-chip .count { color: var(--accent); margin-left: 2px; }
+
+  /* Event log */
+  .event-log { padding: 8px; font-size: 11px; font-family: 'Cascadia Code', 'Fira Code', monospace; flex: 1; }
+  .event-item {
+    padding: 5px 8px; margin-bottom: 1px; border-radius: 3px;
+    border-left: 3px solid var(--border); transition: all .2s;
+  }
+  .event-item.crew_start, .event-item.crew_complete { border-color: var(--accent); }
+  .event-item.agent_start, .event-item.agent_step { border-color: var(--blue); }
+  .event-item.task_complete { border-color: var(--green); }
+  .event-item.review_needed { border-color: var(--orange); background: #fdcb6e08; }
+  .event-item.crew_error { border-color: var(--red); }
+  .event-item.file_written { border-color: var(--cyan); }
+  .event-item.agent_complete { border-color: var(--green); }
+  .event-time { color: var(--dim); font-size: 10px; }
+  .event-type { font-weight: 600; margin-left: 4px; }
+  .event-type.crew_start, .event-type.crew_complete { color: var(--accent); }
+  .event-type.agent_start, .event-type.agent_step { color: var(--blue); }
+  .event-type.task_complete, .event-type.agent_complete { color: var(--green); }
+  .event-type.review_needed { color: var(--orange); }
+  .event-type.crew_error { color: var(--red); }
+  .event-type.file_written { color: var(--cyan); }
+  .event-content { color: var(--text); margin-top: 2px; word-break: break-word; opacity: .85; }
+  .event-expand { cursor: pointer; }
+  .event-expand:hover .event-content { opacity: 1; }
+
+  /* Output files */
+  .output-list { padding: 8px; }
+  .output-file {
+    display: flex; align-items: center; gap: 8px; padding: 8px;
+    border-bottom: 1px solid var(--border); font-size: 12px; cursor: pointer;
+    transition: background .15s;
+  }
+  .output-file:hover { background: var(--surface2); }
+  .output-icon { font-size: 16px; opacity: .6; }
+  .output-name { flex: 1; font-weight: 500; }
+  .output-size { color: var(--dim); font-size: 11px; }
+
+  /* ─── Right: Reviews + Training + Fine-tuning ─── */
+  .review-card {
+    background: var(--surface2); border: 1px solid var(--orange);
+    border-radius: 6px; padding: 10px; margin: 8px;
+  }
+  .review-card h4 { color: var(--orange); font-size: 13px; margin-bottom: 6px; }
+  .review-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .review-actions button { flex: 1; font-size: 11px; }
+  .btn-approve { color: var(--green); border-color: var(--green); }
+  .btn-approve:hover { background: var(--green); color: #000; }
+  .btn-reject { color: var(--red); border-color: var(--red); }
+  .btn-reject:hover { background: var(--red); color: #fff; }
+  textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 6px; color: var(--text); resize: vertical;
+    font-size: 11px; min-height: 50px; margin-top: 6px;
+  }
+
+  /* Training detail panel */
+  .train-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 12px; font-size: 12px;
+  }
+  .train-row + .train-row { border-top: 1px solid var(--border); }
+  .train-row .k { color: var(--dim); }
+  .train-row .v { font-weight: 600; }
+  .train-row .v.good { color: var(--green); }
+  .train-row .v.warn { color: var(--orange); }
+  .loss-chart { padding: 8px 12px; }
+  .loss-bar-wrap { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  .loss-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; }
+  .loss-fill { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--green), var(--accent)); }
+  .loss-val { font-size: 11px; color: var(--text); font-weight: 600; min-width: 45px; text-align: right; }
+
+  /* Progress bar */
+  .progress-wrap { padding: 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .progress-track { height: 3px; background: var(--border); }
+  .progress-fill { height: 3px; background: linear-gradient(90deg, var(--accent), var(--blue)); transition: width .5s ease; }
+
+  /* WS indicator */
+  .ws-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .ws-dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .ws-dot.off { background: var(--red); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="ws-dot off" id="wsDot"></div>
+  <h1>Campus Factory AI</h1>
+  <span class="status-badge status-idle" id="statusBadge">Idle</span>
+  <div class="header-stats">
+    <span><span class="stat-val" id="hdrTasks">0/5</span> tasks</span>
+    <span><span class="stat-val" id="hdrProps">0</span> props</span>
+    <span><span class="stat-val" id="hdrZones">0</span> zones</span>
+    <span id="hdrTimer" style="color:var(--dim)">--:--</span>
+  </div>
+  <div class="controls">
+    <button onclick="startCrew()">Start Crew</button>
+    <button class="danger" onclick="stopCrew()">Stop</button>
+  </div>
+</header>
+
+<div class="progress-wrap">
+  <div class="progress-track"><div class="progress-fill" id="progressBar" style="width:0%"></div></div>
+</div>
+
+<div class="main">
+  <!-- ─── LEFT COLUMN: Agents + System ─── -->
+  <div class="col">
+    <div class="section-title">Agents <span class="badge" id="agentBadge">0/5</span></div>
+    <div id="agentList"></div>
+
+    <div class="section-title">System Status</div>
+    <div class="sys-grid">
+      <div class="sys-card">
+        <div class="label">Ollama</div>
+        <div class="value" id="sysOllamaStatus">...</div>
+        <div class="sub" id="sysOllamaModel">--</div>
+      </div>
+      <div class="sys-card">
+        <div class="label">GPU (VRAM)</div>
+        <div class="value" id="sysGpuName">...</div>
+        <div class="vram-bar"><div class="vram-fill" id="vramFill" style="width:0%"></div></div>
+        <div class="sub" id="sysGpuMem">--</div>
+      </div>
+      <div class="sys-card">
+        <div class="label">Models Loaded</div>
+        <div class="value" id="sysModelsCount">0</div>
+        <div class="sub" id="sysModelsList">--</div>
+      </div>
+      <div class="sys-card">
+        <div class="label">API Keys</div>
+        <div id="apiKeysList" style="margin-top:4px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── CENTER COLUMN: Tabs ─── -->
+  <div class="col">
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('construction')">Construction</div>
+      <div class="tab" onclick="switchTab('events')">Event Log <span class="badge" id="eventCount">0</span></div>
+      <div class="tab" onclick="switchTab('outputs')">Output Files</div>
+    </div>
+
+    <!-- Tab: Construction View -->
+    <div class="tab-content active" id="tab-construction">
+      <div class="construction-view">
+        <div class="iso-grid-wrap">
+          <div class="iso-grid" id="isoGrid"></div>
+        </div>
+        <div class="section-title">Zones <span class="badge" id="zonePropTotal">0 props</span></div>
+        <div class="zone-cards" id="zoneCards"></div>
+      </div>
+    </div>
+
+    <!-- Tab: Event Log -->
+    <div class="tab-content" id="tab-events">
+      <div class="event-log" id="eventLog">
+        <div style="padding:20px;color:var(--dim);text-align:center">Waiting for events...</div>
+      </div>
+    </div>
+
+    <!-- Tab: Output Files -->
+    <div class="tab-content" id="tab-outputs">
+      <div class="output-list" id="outputList">
+        <div style="padding:20px;color:var(--dim);text-align:center">No output files yet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── RIGHT COLUMN: Reviews + Training ─── -->
+  <div class="col">
+    <div class="section-title">Human Review</div>
+    <div id="reviewPanel">
+      <div style="padding:12px;color:var(--dim);font-size:12px;text-align:center">No pending reviews</div>
+    </div>
+
+    <div class="section-title">Fine-Tuning Pipeline</div>
+    <div>
+      <div class="train-row"><span class="k">Status</span><span class="v" id="ftStatus">Idle</span></div>
+      <div class="train-row"><span class="k">Dataset</span><span class="v" id="ftDataset">0 examples</span></div>
+      <div class="train-row"><span class="k">ChatML</span><span class="v" id="ftChatML">0 formatted</span></div>
+      <div class="train-row"><span class="k">LoRA Adapter</span><span class="v" id="ftAdapter">--</span></div>
+      <div class="train-row"><span class="k">GGUF Model</span><span class="v" id="ftGGUF">--</span></div>
+      <div class="train-row"><span class="k">Ollama Model</span><span class="v" id="ftOllama">--</span></div>
+    </div>
+    <div class="loss-chart" id="lossChart" style="display:none">
+      <div style="font-size:11px;color:var(--dim);margin-bottom:4px">Training Loss</div>
+      <div class="loss-bar-wrap">
+        <div class="loss-bar"><div class="loss-fill" id="lossFill" style="width:0%"></div></div>
+        <div class="loss-val" id="lossVal">--</div>
+      </div>
+      <div style="font-size:10px;color:var(--dim);margin-top:2px">
+        Epoch <span id="ftEpoch">0</span>/<span id="ftEpochTotal">0</span>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:auto">
+      Tile Mappings <span class="badge" id="tileMappingCount">0</span>
+    </div>
+    <div class="prop-list" id="tileMappingList" style="padding:8px;max-height:150px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<script>
+// ─── Configuration ──────────────────────────────────────
+const AGENTS = [
+  { id: 'researcher',   name: 'Researcher',   role: 'Office Design Research', llm: 'Claude' },
+  { id: 'architect',    name: 'Architect',     role: 'Campus Layout Design',  llm: 'Claude' },
+  { id: 'art_director', name: 'Art Director',  role: 'Visual Style & Textures', llm: 'Claude' },
+  { id: 'qa_reviewer',  name: 'QA Reviewer',   role: 'Quality Validation',    llm: 'Claude' },
+  { id: 'scrum_master', name: 'Scrum Master',  role: 'Coordination & Report', llm: 'Ollama' },
+];
+
+const ZONE_COLORS = {
+  data_center:'#4a6741', auditorium:'#5a5a7a', noc_war_room:'#3a4a5a',
+  scrum_room:'#7a7a5a', open_cowork:'#5a6a6a', ceo_office:'#8a6a3a',
+  huddle_pods:'#5a5a8a', snack_bar:'#8a6a4a', cafe:'#7a5a3a',
+  gaming_lounge:'#4a5a6a', terrace:'#6a8a6a', green_area:'#3a7a4a',
+  architect:'#6a5a4a',
+};
+
+const ZONE_NAMES = {
+  data_center:'Data Center', auditorium:'Auditorium', noc_war_room:'NOC / War Room',
+  scrum_room:'Scrum Room', open_cowork:'Open Cowork', ceo_office:'CEO Office',
+  huddle_pods:'Huddle Pods', snack_bar:'Snack Bar', cafe:'Cafe',
+  gaming_lounge:'Gaming Lounge', terrace:'Terrace', green_area:'Green Area',
+  architect:'Architect Studio',
+};
+
+let ws = null;
+let startTime = null;
+let timerInterval = null;
+let agentStates = {};  // agent_id → { status, detail, startedAt }
+let zoneData = {};     // zone_name → { rows, cols, ... }
+let zonePropData = {}; // zone_name → { count, props, positions }
+let propPositionMap = {};  // "r-c" → prop_id
+let completedAgents = 0;
+let eventCounter = 0;
+
+// ─── Initialize ─────────────────────────────────
+function init() {
+  renderAgents();
+  connectWS();
+  loadZoneGrid();
+  loadZoneProps();
+  loadTileMappings();
+  fetchSystemInfo();
+  fetchTrainingDetail();
+  fetchOutputs();
+  setInterval(fetchSystemInfo, 10000);
+  setInterval(fetchTrainingDetail, 15000);
+  setInterval(fetchOutputs, 10000);
+  setInterval(loadZoneProps, 8000);  // Refresh prop data as agents work
+}
+
+// ─── Agents ─────────────────────────────────
+function renderAgents() {
+  const el = document.getElementById('agentList');
+  el.innerHTML = AGENTS.map((a, i) => `
+    <div class="agent-card" id="agent-${a.id}" data-agent="${a.id}">
+      <div class="agent-name">${i+1}. ${a.name}</div>
+      <div class="agent-role">${a.role} <span style="color:var(--dim);font-size:10px">[${a.llm}]</span></div>
+      <div class="agent-detail" id="detail-${a.id}"></div>
+      <div class="agent-elapsed" id="time-${a.id}"></div>
+    </div>
+  `).join('');
+}
+
+function setAgentActive(agentName) {
+  // Normalize name to id
+  const id = agentName.toLowerCase().replace(/[\s\/]+/g, '_').replace(/[^a-z_]/g, '');
+  const matchId = AGENTS.find(a =>
+    agentName.toLowerCase().includes(a.name.toLowerCase()) ||
+    id.includes(a.id)
+  )?.id;
+  if (!matchId) return;
+
+  // Deactivate current active
+  document.querySelectorAll('.agent-card.active').forEach(el => {
+    if (el.id !== `agent-${matchId}`) {
+      el.classList.remove('active');
+      el.classList.add('done');
+    }
+  });
+
+  const card = document.getElementById(`agent-${matchId}`);
+  if (card && !card.classList.contains('done')) {
+    card.classList.add('active');
+    agentStates[matchId] = { status: 'active', startedAt: Date.now() };
+  }
+  document.getElementById('agentBadge').textContent = `${completedAgents}/5`;
+}
+
+function setAgentDone(agentName) {
+  const matchId = AGENTS.find(a => agentName.toLowerCase().includes(a.name.toLowerCase()))?.id;
+  if (!matchId) return;
+  const card = document.getElementById(`agent-${matchId}`);
+  if (card) { card.classList.remove('active'); card.classList.add('done'); }
+  completedAgents++;
+  document.getElementById('agentBadge').textContent = `${completedAgents}/5`;
+}
+
+function setAgentDetail(agentName, detail) {
+  const matchId = AGENTS.find(a => agentName.toLowerCase().includes(a.name.toLowerCase()))?.id;
+  if (!matchId) return;
+  const el = document.getElementById(`detail-${matchId}`);
+  if (el) el.textContent = detail.substring(0, 80);
+}
+
+// ─── Zone Grid (Construction View) ────────────────
+async function loadZoneGrid() {
+  try {
+    const r = await fetch('/api/zones');
+    zoneData = await r.json();
+    renderIsoGrid();
+  } catch(e) {}
+}
+
+function renderIsoGrid() {
+  const grid = document.getElementById('isoGrid');
+  const zoneLookup = {};
+  for (const [name, spec] of Object.entries(zoneData)) {
+    for (let r = spec.rows[0]; r <= spec.rows[1]; r++) {
+      for (let c = spec.cols[0]; c <= spec.cols[1]; c++) {
+        zoneLookup[`${r}-${c}`] = name;
+      }
+    }
+  }
+  let html = '';
+  for (let r = 1; r <= 40; r++) {
+    for (let c = 1; c <= 40; c++) {
+      const key = `${r}-${c}`;
+      const zone = zoneLookup[key];
+      const color = zone ? ZONE_COLORS[zone] || '#222' : '#111';
+      const hasProp = propPositionMap[key];
+      const cls = hasProp ? 'iso-cell has-prop' : 'iso-cell';
+      const title = zone ? `${ZONE_NAMES[zone]} (${r},${c})${hasProp ? ' [' + hasProp + ']' : ''}` : `corridor (${r},${c})`;
+      html += `<div class="${cls}" style="background:${color}" title="${title}"></div>`;
+    }
+  }
+  grid.innerHTML = html;
+}
+
+async function loadZoneProps() {
+  try {
+    const r = await fetch('/api/zones/props');
+    zonePropData = await r.json();
+
+    // Build position map for grid overlay
+    propPositionMap = {};
+    let totalProps = 0;
+    let populatedZones = 0;
+    for (const [zname, zdata] of Object.entries(zonePropData)) {
+      totalProps += zdata.count;
+      if (zdata.count > 0) populatedZones++;
+      for (const pos of (zdata.positions || [])) {
+        const r = Math.round(pos.y);
+        const c = Math.round(pos.x);
+        if (r >= 1 && r <= 40 && c >= 1 && c <= 40) {
+          propPositionMap[`${r}-${c}`] = pos.id;
+        }
+      }
+    }
+
+    document.getElementById('hdrProps').textContent = totalProps;
+    document.getElementById('hdrZones').textContent = `${populatedZones}/13`;
+    document.getElementById('zonePropTotal').textContent = `${totalProps} props`;
+
+    renderIsoGrid();  // Re-render with prop dots
+    renderZoneCards();
+  } catch(e) {}
+}
+
+function renderZoneCards() {
+  const container = document.getElementById('zoneCards');
+  let html = '';
+  for (const [zname, spec] of Object.entries(zoneData)) {
+    const pdata = zonePropData[zname] || { count: 0, props: {} };
+    const r0 = spec.rows[0], r1 = spec.rows[1], c0 = spec.cols[0], c1 = spec.cols[1];
+    const area = (r1 - r0 + 1) * (c1 - c0 + 1);
+    const density = pdata.count / area;
+    const densityClass = density < 0.05 ? 'density-sparse' : (density > 0.3 ? 'density-over' : 'density-ok');
+    const densityPct = Math.min(density / 0.3 * 100, 100);
+    const propChips = Object.entries(pdata.props || {}).map(([id, cnt]) =>
+      `<span class="prop-chip">${id}<span class="count">x${cnt}</span></span>`
+    ).join('');
+
+    html += `
+      <div class="zone-card" onclick="selectZone('${zname}')">
+        <div class="zone-card-name">${ZONE_NAMES[zname] || zname}</div>
+        <div class="zone-card-stats">
+          <span>${pdata.count} props</span>
+          <span>${area} tiles</span>
+          <span>d=${density.toFixed(2)}</span>
+        </div>
+        <div class="zone-card-bar"><div class="zone-card-fill ${densityClass}" style="width:${densityPct}%"></div></div>
+        <div class="prop-list">${propChips}</div>
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+}
+
+function selectZone(zname) {
+  document.querySelectorAll('.zone-card').forEach(el => el.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  // Highlight zone cells on grid
+  const cells = document.querySelectorAll('.iso-cell');
+  const spec = zoneData[zname];
+  if (!spec) return;
+  let idx = 0;
+  for (let r = 1; r <= 40; r++) {
+    for (let c = 1; c <= 40; c++) {
+      if (r >= spec.rows[0] && r <= spec.rows[1] && c >= spec.cols[0] && c <= spec.cols[1]) {
+        cells[idx].style.outline = '1px solid var(--accent)';
+      } else {
+        cells[idx].style.outline = '';
+      }
+      idx++;
+    }
+  }
+}
+
+// ─── Tile Mappings ──────────────────────────────
+async function loadTileMappings() {
+  try {
+    const r = await fetch('/api/tile-mappings');
+    const data = await r.json();
+    const entries = Object.entries(data);
+    document.getElementById('tileMappingCount').textContent = entries.length;
+    document.getElementById('tileMappingList').innerHTML = entries.map(([id, tex]) =>
+      `<span class="prop-chip">${id} &rarr; ${tex}</span>`
+    ).join('');
+  } catch(e) {}
+}
+
+// ─── WebSocket ──────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws`);
+  ws.onopen = () => { document.getElementById('wsDot').className = 'ws-dot on'; };
+  ws.onclose = () => { document.getElementById('wsDot').className = 'ws-dot off'; setTimeout(connectWS, 3000); };
+  ws.onmessage = (msg) => {
+    const data = JSON.parse(msg.data);
+    if (data.type === 'state') updateState(data.data);
+    else handleEvent(data);
+  };
+}
+
+function updateState(state) {
+  updateStatusBadge(state.status);
+  document.getElementById('progressBar').style.width = state.progress + '%';
+  document.getElementById('hdrTasks').textContent = `${state.tasks_completed}/${state.tasks_total}`;
+  if (state.current_agent) setAgentActive(state.current_agent);
+  if (state.start_time && !startTime) { startTime = new Date(state.start_time); startTimer(); }
+  updateTrainingFromState(state.training);
+}
+
+function handleEvent(event) {
+  eventCounter++;
+  document.getElementById('eventCount').textContent = eventCounter;
+  addEventLog(event);
+
+  const d = event.data || {};
+  const agentName = d.agent || d.agent_name || '';
+
+  switch (event.type) {
+    case 'crew_start':
+      startTime = new Date(event.timestamp);
+      startTimer();
+      updateStatusBadge('running');
+      break;
+
+    case 'agent_start':
+      setAgentActive(agentName);
+      setAgentDetail(agentName, 'Starting...');
+      break;
+
+    case 'agent_step':
+      if (d.step_type === 'tool_call') {
+        setAgentDetail(agentName || 'current', d.content || '');
+      }
+      // Re-fetch props when agents write zone data
+      if (d.content && (d.content.includes('write_zone') || d.content.includes('write_tile'))) {
+        setTimeout(loadZoneProps, 2000);
+      }
+      break;
+
+    case 'agent_complete':
+      setAgentDone(agentName);
+      break;
+
+    case 'task_complete':
+      if (agentName) setAgentDone(agentName);
+      const completed = parseInt(document.getElementById('hdrTasks').textContent) || 0;
+      // Refresh data after task completes
+      loadZoneProps();
+      loadTileMappings();
+      fetchOutputs();
+      break;
+
+    case 'review_needed':
+      addReview(event);
+      updateStatusBadge('paused_for_review');
+      break;
+
+    case 'review_submitted':
+      updateStatusBadge('running');
+      break;
+
+    case 'crew_complete':
+      updateStatusBadge('complete');
+      stopTimer();
+      loadZoneProps();
+      fetchOutputs();
+      fetchTrainingDetail();
+      break;
+
+    case 'crew_error':
+      updateStatusBadge('error');
+      stopTimer();
+      break;
+
+    case 'file_written':
+      fetchOutputs();
+      loadZoneProps();
+      break;
+
+    case 'training_start':
+      document.getElementById('lossChart').style.display = '';
+      break;
+
+    case 'training_progress':
+      updateTrainingProgress(d);
+      break;
+
+    case 'training_complete':
+      fetchTrainingDetail();
+      break;
+  }
+}
+
+// ─── Event Log ──────────────────────────────────
+function addEventLog(event) {
+  const log = document.getElementById('eventLog');
+  if (log.querySelector('div[style]')) log.innerHTML = '';
+
+  const time = new Date(event.timestamp).toLocaleTimeString();
+  const type = event.type;
+  const d = event.data || {};
+  let content = d.content || d.result_preview || d.description || d.error || d.agent || '';
+  if (!content && Object.keys(d).length) content = JSON.stringify(d);
+  content = content.substring(0, 400);
+
+  const div = document.createElement('div');
+  div.className = `event-item ${type} event-expand`;
+  div.innerHTML = `
+    <span class="event-time">${time}</span>
+    <span class="event-type ${type}">${type}</span>
+    <div class="event-content">${escapeHtml(content)}</div>
+  `;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ─── Reviews ────────────────────────────────────
+function addReview(event) {
+  const panel = document.getElementById('reviewPanel');
+  if (panel.querySelector('div[style]')) panel.innerHTML = '';
+  const d = event.data || {};
+  const div = document.createElement('div');
+  div.className = 'review-card';
+  div.id = `review-${event.id}`;
+  div.innerHTML = `
+    <h4>Review: ${escapeHtml(d.agent || 'Agent')}</h4>
+    <p style="font-size:12px">${escapeHtml(d.description || 'Output needs review')}</p>
+    <pre style="font-size:10px;max-height:120px;overflow:auto;background:var(--bg);padding:6px;border-radius:4px;margin-top:6px">${escapeHtml(d.preview || '')}</pre>
+    <textarea placeholder="Notes..." id="reviewNotes-${event.id}"></textarea>
+    <div class="review-actions">
+      <button class="btn-approve" onclick="submitReview(${event.id},'approve')">Approve</button>
+      <button class="btn-reject" onclick="submitReview(${event.id},'reject')">Reject</button>
+    </div>
+  `;
+  panel.appendChild(div);
+}
+
+async function submitReview(eventId, action) {
+  const notes = document.getElementById(`reviewNotes-${eventId}`)?.value || '';
+  await fetch(`/api/reviews/${eventId}`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ action, notes }),
+  });
+  document.getElementById(`review-${eventId}`)?.remove();
+  const panel = document.getElementById('reviewPanel');
+  if (!panel.children.length) panel.innerHTML = '<div style="padding:12px;color:var(--dim);font-size:12px;text-align:center">No pending reviews</div>';
+}
+
+// ─── System Info ────────────────────────────────
+async function fetchSystemInfo() {
+  try {
+    const r = await fetch('/api/system');
+    const d = await r.json();
+
+    // Ollama
+    const ollamaEl = document.getElementById('sysOllamaStatus');
+    ollamaEl.textContent = d.ollama_running ? 'Online' : 'Offline';
+    ollamaEl.className = `value ${d.ollama_running ? 'online' : 'offline'}`;
+    document.getElementById('sysOllamaModel').textContent = d.ollama_model;
+
+    // GPU
+    const gpuStr = d.gpu_info || '';
+    const gpuParts = gpuStr.split(',').map(s => s.trim());
+    document.getElementById('sysGpuName').textContent = gpuParts[0] || 'Unknown';
+    if (gpuParts.length >= 3) {
+      const used = parseInt(gpuParts[1]) || 0;
+      const total = parseInt(gpuParts[2]) || 1;
+      const pct = (used / total * 100).toFixed(0);
+      document.getElementById('vramFill').style.width = pct + '%';
+      document.getElementById('sysGpuMem').textContent = `${used} / ${total} MiB (${pct}%)`;
+    }
+
+    // Models
+    const models = d.models_loaded || [];
+    document.getElementById('sysModelsCount').textContent = models.length;
+    document.getElementById('sysModelsList').textContent = models.map(m => `${m.name} (${m.size_gb}GB)`).join(', ') || 'None';
+
+    // API Keys (check from server-side - we can infer from model config)
+    const apis = document.getElementById('apiKeysList');
+    apis.innerHTML = [
+      { name: 'Anthropic', ok: true },
+      { name: 'Ollama', ok: d.ollama_running },
+      { name: 'Telegram', ok: true },
+      { name: 'DeerFlow', ok: false },
+    ].map(a => `<div class="api-row"><div class="api-dot ${a.ok ? 'ok' : 'missing'}"></div>${a.name}</div>`).join('');
+  } catch(e) {}
+}
+
+// ─── Training Detail ────────────────────────────
+async function fetchTrainingDetail() {
+  try {
+    const r = await fetch('/api/training/detail');
+    const d = await r.json();
+
+    document.getElementById('ftStatus').textContent = d.status || 'Idle';
+    document.getElementById('ftStatus').className = `v ${d.status === 'complete' ? 'good' : ''}`;
+
+    document.getElementById('ftDataset').textContent = `${d.dataset_size || 0} examples`;
+    document.getElementById('ftDataset').className = `v ${(d.dataset_size || 0) > 0 ? 'good' : ''}`;
+
+    document.getElementById('ftChatML').textContent = `${d.chatml_size || 0} formatted`;
+    document.getElementById('ftChatML').className = `v ${(d.chatml_size || 0) > 0 ? 'good' : ''}`;
+
+    const checkpoints = d.checkpoints || [];
+    document.getElementById('ftAdapter').textContent = checkpoints.length ? checkpoints[checkpoints.length-1] : 'None';
+    document.getElementById('ftAdapter').className = `v ${checkpoints.length ? 'good' : 'warn'}`;
+
+    document.getElementById('ftGGUF').textContent = d.gguf_exists ? `${d.gguf_size_mb}MB` : 'Not exported';
+    document.getElementById('ftGGUF').className = `v ${d.gguf_exists ? 'good' : 'warn'}`;
+
+    document.getElementById('ftOllama').textContent = d.model_registered ? 'campus-expert' : 'Not registered';
+    document.getElementById('ftOllama').className = `v ${d.model_registered ? 'good' : 'warn'}`;
+
+    if (d.loss != null) {
+      document.getElementById('lossChart').style.display = '';
+      updateTrainingProgress({ loss: d.loss, epoch: d.epochs_done, epochs_total: d.epochs_total });
+    }
+  } catch(e) {}
+}
+
+function updateTrainingFromState(t) {
+  if (!t) return;
+  document.getElementById('ftStatus').textContent = t.status || 'Idle';
+  if (t.examples_collected) document.getElementById('ftDataset').textContent = `${t.examples_collected} examples`;
+}
+
+function updateTrainingProgress(d) {
+  document.getElementById('lossChart').style.display = '';
+  if (d.loss != null) {
+    const lossPct = Math.max(0, Math.min(100, (1 - d.loss / 5) * 100));
+    document.getElementById('lossFill').style.width = lossPct + '%';
+    document.getElementById('lossVal').textContent = d.loss.toFixed(4);
+  }
+  if (d.epoch != null) document.getElementById('ftEpoch').textContent = d.epoch;
+  if (d.epochs_total) document.getElementById('ftEpochTotal').textContent = d.epochs_total;
+}
+
+// ─── Output Files ───────────────────────────────
+async function fetchOutputs() {
+  try {
+    const r = await fetch('/api/outputs');
+    const files = await r.json();
+    const el = document.getElementById('outputList');
+    if (!files.length) return;
+
+    el.innerHTML = files.map(f => {
+      const ext = f.name.split('.').pop();
+      const icon = { json: '{}', md: '#', txt: 'T', jsonl: '[]', py: 'Py' }[ext] || '?';
+      const size = f.size > 1024 ? `${(f.size/1024).toFixed(1)}KB` : `${f.size}B`;
+      return `
+        <div class="output-file" onclick="window.open('/api/outputs/${f.name}','_blank')">
+          <div class="output-icon">${icon}</div>
+          <div class="output-name">${f.name}</div>
+          <div class="output-size">${size}</div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {}
+}
+
+// ─── Tabs ───────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab-content#tab-${name}`).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ─── Timer ──────────────────────────────────────
+function startTimer() {
+  if (timerInterval) return;
+  timerInterval = setInterval(() => {
+    if (!startTime) return;
+    const diff = Math.floor((Date.now() - startTime.getTime()) / 1000);
+    const m = Math.floor(diff/60).toString().padStart(2,'0');
+    const s = (diff%60).toString().padStart(2,'0');
+    document.getElementById('hdrTimer').textContent = `${m}:${s}`;
+  }, 1000);
+}
+function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
+
+// ─── Controls ───────────────────────────────────
+function updateStatusBadge(status) {
+  const badge = document.getElementById('statusBadge');
+  badge.textContent = status.replace(/_/g, ' ');
+  badge.className = `status-badge status-${status}`;
+}
+
+async function startCrew() {
+  try {
+    const r = await fetch('/api/crew/start', { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok) alert(d.detail || 'Error');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+async function stopCrew() {
+  if (!confirm('Stop the crew?')) return;
+  await fetch('/api/crew/stop', { method: 'POST' });
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+init();
+</script>
+</body>
+</html>
