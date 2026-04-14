@@ -23,6 +23,7 @@ from crewai import Agent, Task, Crew, Process, LLM
 
 from factory_ai.config import OLLAMA_BASE_URL, OLLAMA_MODEL, ZONES, OUTPUT_DIR
 from factory_ai.events import bus, EventType
+from factory_ai.crew_callbacks import crew_step_callback, make_task_callback
 from factory_ai.tools.campus_tools import (
     read_campus_layout, read_campus_props, read_tile_atlas,
     read_campus_wander, get_zone_specs, list_available_tiles,
@@ -41,6 +42,9 @@ from factory_ai.tools.deerflow_tools import (
 from factory_ai.tools.interior_tools import (
     get_layout_template, get_placement_rules, validate_zone_layout,
     redesign_zone_layout, compute_smart_layout,
+)
+from factory_ai.tools.asset_gen_tools import (
+    generate_prop_texture, generate_zone_textures, list_missing_textures,
 )
 
 # ─── LLM Configuration ─────────────────────────────────────────────────────
@@ -99,37 +103,9 @@ else:
     tool_llm = brain_llm
 
 
-# ─── Task Callbacks (PROPERLY WIRED) ──────────────────────────────────────
-# CrewAI fires Task.callback(task_output) after each task completes.
-# This is the CORRECT way to hook into CrewAI events.
-
-def _make_task_callback(task_name: str, agent_name: str):
-    """Create a callback that emits events + collects training data."""
-    def callback(task_output):
-        result_text = ""
-        if hasattr(task_output, "raw"):
-            result_text = str(task_output.raw)[:2000]
-        elif hasattr(task_output, "result"):
-            result_text = str(task_output.result)[:2000]
-        else:
-            result_text = str(task_output)[:2000]
-
-        bus.emit(EventType.TASK_COMPLETE, {
-            "task": task_name,
-            "agent": agent_name,
-            "result_preview": result_text,
-        })
-
-        # Save raw output to file for training data
-        output_file = OUTPUT_DIR / f"{task_name.replace(' ', '_').lower()}_output.txt"
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            output_file.write_text(result_text, encoding="utf-8")
-            bus.emit(EventType.FILE_WRITTEN, {"filename": output_file.name})
-        except Exception as e:
-            print(f"[Callback] Error saving output: {e}")
-
-    return callback
+# ─── Task Callbacks ──────────────────────────────────────────────────────
+# crew_step_callback (imported) → fires on every LLM step, emits AGENT_STEP
+# make_task_callback (imported) → per-task factory, emits AGENT_START + TASK_COMPLETE
 
 
 # ─── Agent Definitions ──────────────────────────────────────────────────────
@@ -148,6 +124,7 @@ researcher = Agent(
     tools=[
         search_office_design, search_isometric_reference, search_furniture_dimensions,
         deep_research, analyze_reference_images,  # DeerFlow swarm tools
+        list_missing_textures,  # Check what textures we need
     ],
     llm=brain_llm,  # Researcher on Claude for speed (Ollama was 10+ min)
     verbose=True,
@@ -170,6 +147,7 @@ architect = Agent(
     tools=[
         read_campus_layout, read_campus_props, get_zone_specs,
         analyze_prop_coverage, write_zone_props, request_layout_review,
+        deep_research,  # DeerFlow for zone-specific research
     ],
     llm=brain_llm,
     verbose=True,
@@ -192,6 +170,8 @@ art_director = Agent(
     tools=[
         list_available_tiles, list_asset_packs, read_tile_atlas,
         get_zone_specs, write_tile_mapping, write_tile_atlas, write_design_report, request_visual_review,
+        generate_prop_texture, generate_zone_textures, list_missing_textures,  # fal.ai asset gen
+        deep_research, analyze_reference_images,  # DeerFlow for visual research
     ],
     llm=brain_llm,
     verbose=True,
@@ -213,6 +193,7 @@ qa_reviewer = Agent(
     tools=[
         read_campus_props, read_campus_layout, get_zone_specs,
         analyze_prop_coverage, read_tile_atlas, request_qa_review,
+        deep_research,  # DeerFlow for standards validation research
     ],
     llm=brain_llm,  # QA on Claude for speed + accuracy
     verbose=True,
@@ -239,6 +220,7 @@ interior_designer = Agent(
     tools=[
         get_layout_template, get_placement_rules, validate_zone_layout,
         redesign_zone_layout, compute_smart_layout, get_zone_specs,
+        deep_research,  # DeerFlow for spatial design research
     ],
     llm=brain_llm,
     verbose=True,
@@ -270,19 +252,26 @@ task_research = Task(
         f"Research modern tech office design for a campus with these 13 zones:\n"
         f"{zone_list}\n\n"
         "For each zone, find:\n"
-        "1. What furniture is typically found in that type of room\n"
+        "1. What furniture is typically found in that type of room — aim for 20-35 items per zone\n"
         "2. Standard furniture proportions (width x depth in meters)\n"
-        "3. How many items typically fit in a room of that size\n"
-        "4. Visual reference for isometric pixel art renderings of similar rooms\n\n"
-        "Focus especially on: data center, gaming lounge, CEO office, and open cowork — "
-        "these had the most issues in the previous iteration."
+        "3. Include VARIETY: don't just list desks and chairs. Include:\n"
+        "   - Acoustic panels, room dividers, privacy screens\n"
+        "   - Cable trays, monitor arms, standing desk converters\n"
+        "   - Whiteboards (mobile), projectors, video conferencing units\n"
+        "   - Kitchen items: dishwasher, toaster, water cooler, trash/recycling\n"
+        "   - Decor: wall art, clocks, rugs, coat racks, umbrella stands\n"
+        "   - Reception desks, filing cabinets, lockers, fire extinguishers\n"
+        "4. Visual reference for isometric pixel art renderings of similar rooms\n"
+        "5. Use list_missing_textures to check which props need new textures generated\n\n"
+        "IMPORTANT: Each zone should have 20-35 unique prop types. Previous iteration "
+        "only had 9-20 per zone. Be comprehensive! A real office has MANY small items."
     ),
     expected_output=(
         "A structured report with furniture recommendations per zone, including "
         "item counts, proportions, and placement guidelines."
     ),
     agent=researcher,
-    callback=_make_task_callback("Research", "Researcher"),
+    callback=make_task_callback("Research", "Researcher", OUTPUT_DIR),
 )
 
 task_layout = Task(
@@ -311,7 +300,7 @@ task_layout = Task(
     ),
     agent=architect,
     context=[task_research],
-    callback=_make_task_callback("Layout", "Architect"),
+    callback=make_task_callback("Layout", "Architect", OUTPUT_DIR),
 )
 
 task_visuals = Task(
@@ -334,7 +323,7 @@ task_visuals = Task(
     ),
     agent=art_director,
     context=[task_layout],
-    callback=_make_task_callback("Visuals", "Art Director"),
+    callback=make_task_callback("Visuals", "Art Director", OUTPUT_DIR),
 )
 
 task_interior = Task(
@@ -364,7 +353,7 @@ task_interior = Task(
     ),
     agent=interior_designer,
     context=[task_layout],
-    callback=_make_task_callback("Interior Design", "Interior Designer"),
+    callback=make_task_callback("Interior Design", "Interior Designer", OUTPUT_DIR),
 )
 
 task_qa = Task(
@@ -380,7 +369,7 @@ task_qa = Task(
     expected_output="A QA report listing all issues found with fix recommendations.",
     agent=qa_reviewer,
     context=[task_layout, task_interior, task_visuals],
-    callback=_make_task_callback("QA Review", "QA Reviewer"),
+    callback=make_task_callback("QA Review", "QA Reviewer", OUTPUT_DIR),
 )
 
 task_summary = Task(
@@ -393,8 +382,8 @@ task_summary = Task(
     ),
     expected_output="A final markdown report summarizing the campus redesign.",
     agent=scrum_master,
-    context=[task_layout, task_visuals, task_qa],
-    callback=_make_task_callback("Summary", "Scrum Master"),
+    context=[task_layout, task_interior, task_visuals, task_qa],
+    callback=make_task_callback("Summary", "Scrum Master", OUTPUT_DIR),
 )
 
 # ─── Crew Assembly ──────────────────────────────────────────────────────────
@@ -405,6 +394,7 @@ campus_crew = Crew(
     process=Process.sequential,
     verbose=True,
     memory=False,
+    step_callback=crew_step_callback,  # Real-time AGENT_STEP events for dashboard
 )
 
 

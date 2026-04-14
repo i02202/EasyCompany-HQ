@@ -115,6 +115,13 @@ def update_state_from_event(event: Event):
 
 bus.on(update_state_from_event)
 
+# ─── DeerFlow (auto-start) ───────────────────────────────────────────────
+try:
+    from factory_ai.deerflow_launcher import start as deerflow_start
+    threading.Thread(target=deerflow_start, daemon=True).start()
+except Exception as e:
+    print(f"[Server] DeerFlow launcher failed: {e}")
+
 # ─── Telegram Bot (auto-start) ────────────────────────────────────────────
 try:
     from factory_ai.telegram_bot import reporter as telegram_reporter
@@ -243,8 +250,9 @@ async def submit_review(event_id: int, body: dict):
         "notes": notes,
     })
 
-    # Signal the crew thread that review is done
+    # Signal the crew thread that review is done, then reset for next review
     review_event.set()
+    review_event.clear()
 
     return {"status": "ok", "action": action}
 
@@ -269,7 +277,9 @@ async def list_outputs():
 @app.get("/api/outputs/{filename}")
 async def get_output(filename: str):
     """Read a specific output file."""
-    filepath = OUTPUT_DIR / filename
+    filepath = (OUTPUT_DIR / filename).resolve()
+    if not filepath.is_relative_to(OUTPUT_DIR.resolve()):
+        raise HTTPException(403, "Access denied")
     if not filepath.exists():
         raise HTTPException(404, "File not found")
     return FileResponse(filepath)
@@ -336,6 +346,28 @@ async def get_system_status():
     return info
 
 
+@app.get("/api/deerflow/status")
+async def get_deerflow_status():
+    """Check DeerFlow gateway health."""
+    from factory_ai.config import DEERFLOW_URL
+    from factory_ai.deerflow_launcher import is_running
+    info = {"url": DEERFLOW_URL, "available": is_running(), "detail": ""}
+    if info["available"]:
+        info["detail"] = "Gateway running (auto-managed)"
+        # Get models list
+        try:
+            import urllib.request
+            resp = urllib.request.urlopen(f"{DEERFLOW_URL}/api/models", timeout=3)
+            data = json.loads(resp.read())
+            models = data.get("models", data) if isinstance(data, dict) else data
+            info["models"] = [m.get("name", "?") for m in models] if isinstance(models, list) else []
+        except Exception:
+            info["models"] = []
+    else:
+        info["detail"] = "Gateway offline — using DDG fallback"
+    return info
+
+
 @app.post("/api/crew/start")
 async def start_crew():
     """Start the campus redesign crew in a background thread."""
@@ -364,6 +396,8 @@ async def start_crew():
             })
         except Exception as e:
             bus.emit(EventType.CREW_ERROR, {"error": str(e)})
+        finally:
+            bus.off(collector.collect)
 
     thread = threading.Thread(target=run_crew, daemon=True)
     thread.start()

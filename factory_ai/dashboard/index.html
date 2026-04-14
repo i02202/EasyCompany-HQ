@@ -57,8 +57,26 @@
     font-size: 12px; transition: all .15s;
   }
   button:hover { background: var(--accent); border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
   button.danger:hover { background: var(--red); border-color: var(--red); }
   button.sm { padding: 4px 10px; font-size: 11px; }
+
+  /* ─── DeerFlow Activity Bar ─── */
+  .deerflow-bar {
+    display: none; padding: 6px 12px; background: #1a1a3a;
+    border-bottom: 1px solid var(--border); font-size: 11px;
+    align-items: center; gap: 8px;
+  }
+  .deerflow-bar.active { display: flex; }
+  .deerflow-bar .df-spinner {
+    width: 12px; height: 12px; border: 2px solid var(--blue);
+    border-top-color: transparent; border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .deerflow-bar .df-label { color: var(--blue); font-weight: 600; }
+  .deerflow-bar .df-detail { color: var(--dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .deerflow-bar .df-timer { color: var(--orange); font-family: monospace; }
 
   /* ─── Main Grid: 3 columns ─── */
   .main {
@@ -286,13 +304,20 @@
     <span id="hdrTimer" style="color:var(--dim)">--:--</span>
   </div>
   <div class="controls">
-    <button onclick="startCrew()">Start Crew</button>
+    <button id="btnStartCrew" onclick="startCrew()">Start Crew</button>
     <button class="danger" onclick="stopCrew()">Stop</button>
   </div>
 </header>
 
 <div class="progress-wrap">
   <div class="progress-track"><div class="progress-fill" id="progressBar" style="width:0%"></div></div>
+</div>
+
+<div class="deerflow-bar" id="deerflowBar">
+  <div class="df-spinner"></div>
+  <span class="df-label">DeerFlow</span>
+  <span class="df-detail" id="dfDetail">Researching...</span>
+  <span class="df-timer" id="dfTimer">0:00</span>
 </div>
 
 <div class="main">
@@ -329,9 +354,9 @@
   <!-- ─── CENTER COLUMN: Tabs ─── -->
   <div class="col">
     <div class="tab-bar">
-      <div class="tab active" onclick="switchTab('construction')">Construction</div>
-      <div class="tab" onclick="switchTab('events')">Event Log <span class="badge" id="eventCount">0</span></div>
-      <div class="tab" onclick="switchTab('outputs')">Output Files</div>
+      <div class="tab active" onclick="switchTab('construction', this)">Construction</div>
+      <div class="tab" onclick="switchTab('events', this)">Event Log <span class="badge" id="eventCount">0</span></div>
+      <div class="tab" onclick="switchTab('outputs', this)">Output Files</div>
     </div>
 
     <!-- Tab: Construction View -->
@@ -435,7 +460,10 @@ let zoneData = {};     // zone_name → { rows, cols, ... }
 let zonePropData = {}; // zone_name → { count, props, positions }
 let propPositionMap = {};  // "r-c" → prop_id
 let completedAgents = 0;
+let tasksCompleted = 0;
 let eventCounter = 0;
+let dfQueryStart = null;  // DeerFlow query timer
+let dfTimerInterval = null;
 
 // ─── Initialize ─────────────────────────────────
 function init() {
@@ -625,8 +653,8 @@ function updateTooltip(row, col, px, py) {
   let html = `<b>${zoneLabel}</b> <span style="color:var(--dim)">(${row}, ${col})</span>`;
   if (propId) {
     const tex = tileMappings[propId] || '';
-    html += `<br><span style="color:var(--accent)">${propId}</span>`;
-    if (tex) html += ` <span style="color:var(--dim);font-size:9px">${tex}</span>`;
+    html += `<br><span style="color:var(--accent)">${escapeHtml(propId)}</span>`;
+    if (tex) html += ` <span style="color:var(--dim);font-size:9px">${escapeHtml(tex)}</span>`;
   }
   tip.innerHTML = html;
   tip.style.display = 'block';
@@ -796,7 +824,7 @@ function renderZoneCards() {
     ).join('');
 
     html += `
-      <div class="zone-card" onclick="selectZone('${zname}')">
+      <div class="zone-card" onclick="selectZone('${zname}', this)">
         <div class="zone-card-name">${ZONE_NAMES[zname] || zname}</div>
         <div class="zone-card-stats">
           <span>${pdata.count} props</span>
@@ -813,9 +841,9 @@ function renderZoneCards() {
 
 let selectedZone = null;
 
-function selectZone(zname) {
-  document.querySelectorAll('.zone-card').forEach(el => el.classList.remove('selected'));
-  event.currentTarget.classList.add('selected');
+function selectZone(zname, el) {
+  document.querySelectorAll('.zone-card').forEach(c => c.classList.remove('selected'));
+  if (el) el.classList.add('selected');
   selectedZone = zname;
   // Fly camera to zone
   const spec = zoneData[zname];
@@ -853,7 +881,8 @@ function connectWS() {
   ws.onopen = () => { document.getElementById('wsDot').className = 'ws-dot on'; };
   ws.onclose = () => { document.getElementById('wsDot').className = 'ws-dot off'; setTimeout(connectWS, 3000); };
   ws.onmessage = (msg) => {
-    const data = JSON.parse(msg.data);
+    let data;
+    try { data = JSON.parse(msg.data); } catch(e) { return; }
     if (data.type === 'state') updateState(data.data);
     else handleEvent(data);
   };
@@ -862,9 +891,14 @@ function connectWS() {
 function updateState(state) {
   updateStatusBadge(state.status);
   document.getElementById('progressBar').style.width = state.progress + '%';
-  document.getElementById('hdrTasks').textContent = `${state.tasks_completed}/${state.tasks_total}`;
+  tasksCompleted = state.tasks_completed || 0;
+  document.getElementById('hdrTasks').textContent = `${tasksCompleted}/${state.tasks_total}`;
   if (state.current_agent) setAgentActive(state.current_agent);
   if (state.start_time && !startTime) { startTime = new Date(state.start_time); startTimer(); }
+  // Sync button state
+  const isRunning = ['running', 'paused_for_review'].includes(state.status);
+  document.getElementById('btnStartCrew').disabled = isRunning;
+  document.getElementById('btnStartCrew').textContent = isRunning ? 'Running...' : 'Start Crew';
   updateTrainingFromState(state.training);
 }
 
@@ -881,6 +915,8 @@ function handleEvent(event) {
       startTime = new Date(event.timestamp);
       startTimer();
       updateStatusBadge('running');
+      document.getElementById('btnStartCrew').disabled = true;
+      document.getElementById('btnStartCrew').textContent = 'Running...';
       break;
 
     case 'agent_start':
@@ -891,6 +927,14 @@ function handleEvent(event) {
     case 'agent_step':
       if (d.step_type === 'tool_call') {
         setAgentDetail(agentName || 'current', d.content || '');
+      }
+      // DeerFlow activity indicator
+      if (agentName === 'DeerFlow' || d.tool === 'deep_research' || d.tool === 'analyze_reference_images') {
+        if (d.step_type === 'tool_call') {
+          showDeerFlow(d.content || 'Deep research in progress (~3-5 min)...');
+        } else if (d.step_type === 'finish') {
+          hideDeerFlow();
+        }
       }
       // Re-fetch props when agents write zone data
       if (d.content && (d.content.includes('write_zone') || d.content.includes('write_tile'))) {
@@ -904,7 +948,9 @@ function handleEvent(event) {
 
     case 'task_complete':
       if (agentName) setAgentDone(agentName);
-      const completed = parseInt(document.getElementById('hdrTasks').textContent) || 0;
+      tasksCompleted++;
+      document.getElementById('hdrTasks').textContent = `${tasksCompleted}/6`;
+      document.getElementById('progressBar').style.width = `${Math.round((tasksCompleted/6)*100)}%`;
       // Refresh data after task completes
       loadZoneProps();
       loadTileMappings();
@@ -923,6 +969,8 @@ function handleEvent(event) {
     case 'crew_complete':
       updateStatusBadge('complete');
       stopTimer();
+      hideDeerFlow();
+      enableStartButton();
       loadZoneProps();
       fetchOutputs();
       fetchTrainingDetail();
@@ -931,6 +979,8 @@ function handleEvent(event) {
     case 'crew_error':
       updateStatusBadge('error');
       stopTimer();
+      hideDeerFlow();
+      enableStartButton();
       break;
 
     case 'file_written':
@@ -1036,18 +1086,21 @@ async function fetchSystemInfo() {
     document.getElementById('sysModelsCount').textContent = models.length;
     document.getElementById('sysModelsList').textContent = models.map(m => `${m.name} (${m.size_gb}GB)`).join(', ') || 'None';
 
-    // API Keys — DeerFlow uses HTTP fallback, check if reachable
+    // DeerFlow status via our backend proxy
     let deerflowOk = false;
+    let deerflowLabel = '(offline)';
     try {
-      const df = await fetch('http://localhost:8422/api/v0/health', { signal: AbortSignal.timeout(2000) });
-      deerflowOk = df.ok;
+      const df = await fetch('/api/deerflow/status');
+      const dfData = await df.json();
+      deerflowOk = dfData.available;
+      deerflowLabel = deerflowOk ? '' : `(${dfData.detail || 'offline'})`;
     } catch(e) {}
     const apis = document.getElementById('apiKeysList');
     apis.innerHTML = [
       { name: 'Anthropic', ok: true },
       { name: 'Ollama', ok: d.ollama_running },
       { name: 'Telegram', ok: true },
-      { name: 'DeerFlow', ok: deerflowOk, label: deerflowOk ? '' : '(HTTP fallback)' },
+      { name: 'DeerFlow', ok: deerflowOk, label: deerflowLabel },
     ].map(a => `<div class="api-row"><div class="api-dot ${a.ok ? 'ok' : 'missing'}"></div>${a.name}${a.label ? ' <span style="color:var(--dim);font-size:9px">' + a.label + '</span>' : ''}</div>`).join('');
   } catch(e) {}
 }
@@ -1126,10 +1179,12 @@ async function fetchOutputs() {
       const ext = f.name.split('.').pop();
       const icon = { json: '{}', md: '#', txt: 'T', jsonl: '[]', py: 'Py' }[ext] || '?';
       const size = f.size > 1024 ? `${(f.size/1024).toFixed(1)}KB` : `${f.size}B`;
+      const safeName = encodeURIComponent(f.name);
+      const displayName = escapeHtml(f.name);
       return `
-        <div class="output-file" onclick="window.open('/api/outputs/${f.name}','_blank')">
+        <div class="output-file" onclick="window.open('/api/outputs/${safeName}','_blank')">
           <div class="output-icon">${icon}</div>
-          <div class="output-name">${f.name}</div>
+          <div class="output-name">${displayName}</div>
           <div class="output-size">${size}</div>
         </div>
       `;
@@ -1138,11 +1193,11 @@ async function fetchOutputs() {
 }
 
 // ─── Tabs ───────────────────────────────────────
-function switchTab(name) {
+function switchTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelector(`.tab-content#tab-${name}`).classList.add('active');
-  event.currentTarget.classList.add('active');
+  if (el) el.classList.add('active');
 }
 
 // ─── Timer ──────────────────────────────────────
@@ -1156,7 +1211,12 @@ function startTimer() {
     document.getElementById('hdrTimer').textContent = `${m}:${s}`;
   }, 1000);
 }
-function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  startTime = null;
+  document.getElementById('hdrTimer').textContent = '--:--';
+}
 
 // ─── Controls ───────────────────────────────────
 function updateStatusBadge(status) {
@@ -1166,15 +1226,54 @@ function updateStatusBadge(status) {
 }
 
 async function startCrew() {
+  const btn = document.getElementById('btnStartCrew');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
   try {
     const r = await fetch('/api/crew/start', { method: 'POST' });
     const d = await r.json();
-    if (!r.ok) alert(d.detail || 'Error');
-  } catch(e) { alert('Error: ' + e.message); }
+    if (!r.ok) {
+      alert(d.detail || 'Error');
+      btn.disabled = false;
+      btn.textContent = 'Start Crew';
+    }
+  } catch(e) {
+    alert('Error: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Start Crew';
+  }
+}
+function enableStartButton() {
+  const btn = document.getElementById('btnStartCrew');
+  btn.disabled = false;
+  btn.textContent = 'Start Crew';
 }
 async function stopCrew() {
   if (!confirm('Stop the crew?')) return;
-  await fetch('/api/crew/stop', { method: 'POST' });
+  const r = await fetch('/api/crew/stop', { method: 'POST' });
+  if (!r.ok) alert('Stop failed');
+  // Button state driven by WS crew_complete / crew_error events
+}
+
+// ─── DeerFlow Activity Bar ─────────────────────
+function showDeerFlow(detail) {
+  const bar = document.getElementById('deerflowBar');
+  document.getElementById('dfDetail').textContent = detail || 'Researching...';
+  bar.classList.add('active');
+  if (!dfQueryStart) {
+    dfQueryStart = Date.now();
+    dfTimerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - dfQueryStart) / 1000);
+      const m = Math.floor(elapsed / 60);
+      const s = (elapsed % 60).toString().padStart(2, '0');
+      document.getElementById('dfTimer').textContent = `${m}:${s}`;
+    }, 1000);
+  }
+}
+function hideDeerFlow() {
+  document.getElementById('deerflowBar').classList.remove('active');
+  if (dfTimerInterval) { clearInterval(dfTimerInterval); dfTimerInterval = null; }
+  dfQueryStart = null;
 }
 
 function escapeHtml(s) {
