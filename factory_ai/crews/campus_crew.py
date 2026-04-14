@@ -82,6 +82,13 @@ if ANTHROPIC_API_KEY:
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
     )
+    # campus-expert (fine-tuned 1.5B) doesn't support tool calling,
+    # so use qwen3:8b for agents that need tools
+    tool_llm = LLM(
+        model="ollama/qwen3:8b",
+        base_url=OLLAMA_BASE_URL,
+        temperature=0.7,
+    )
 else:
     brain_llm = LLM(
         model=f"ollama/{OLLAMA_MODEL}",
@@ -89,6 +96,7 @@ else:
         temperature=0.7,
     )
     light_llm = brain_llm
+    tool_llm = brain_llm
 
 
 # ─── Task Callbacks (PROPERLY WIRED) ──────────────────────────────────────
@@ -248,7 +256,7 @@ scrum_master = Agent(
         "QA reviewer catches all issues. You produce the final summary."
     ),
     tools=[get_zone_specs, analyze_prop_coverage, write_design_report],
-    llm=light_llm,
+    llm=tool_llm,  # campus-expert doesn't support tools, use qwen3:8b
     verbose=True,
     max_iter=6,
 )
