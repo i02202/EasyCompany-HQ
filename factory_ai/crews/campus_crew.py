@@ -60,7 +60,7 @@ def _validate_setup():
     if USE_CLAUDE and ANTHROPIC_API_KEY:
         print(f"[Crew] Claude API enabled (brain) + Ollama {OLLAMA_MODEL} (light)")
     else:
-        print(f"[Crew] All-local mode: Ollama {OLLAMA_MODEL} + qwen3:8b tools")
+        print(f"[Crew] All-local mode: gemma3:12b (brain) + qwen3:8b (tools)")
 
     # Check Ollama is reachable
     try:
@@ -97,14 +97,18 @@ if USE_CLAUDE and ANTHROPIC_API_KEY:
         temperature=0.7,
     )
 else:
-    # All-local mode: qwen3:8b for everything (no rate limits)
+    # All-local mode: gemma3:12b (brain) + qwen3:8b (tools) — no rate limits
     brain_llm = LLM(
-        model="ollama/qwen3:8b",
+        model="ollama/gemma3:12b",
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
     )
     light_llm = brain_llm
-    tool_llm = brain_llm
+    tool_llm = LLM(
+        model="ollama/qwen3:8b",
+        base_url=OLLAMA_BASE_URL,
+        temperature=0.7,
+    )
 
 
 # ─── Task Callbacks ──────────────────────────────────────────────────────
