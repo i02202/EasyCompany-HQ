@@ -49,15 +49,18 @@ from factory_ai.tools.asset_gen_tools import (
 
 # ─── LLM Configuration ─────────────────────────────────────────────────────
 
+# Claude API key kept for optional future use (e.g., single high-quality runs)
+# Default: all agents on Ollama local to avoid rate limits
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+USE_CLAUDE = os.getenv("USE_CLAUDE_BRAIN", "").lower() in ("1", "true", "yes")
 
 
 def _validate_setup():
     """Validate LLM connectivity at import time."""
-    if ANTHROPIC_API_KEY:
-        print(f"[Crew] Claude API configured (brain) + Ollama {OLLAMA_MODEL} (light)")
+    if USE_CLAUDE and ANTHROPIC_API_KEY:
+        print(f"[Crew] Claude API enabled (brain) + Ollama {OLLAMA_MODEL} (light)")
     else:
-        print(f"[Crew] Ollama-only mode: {OLLAMA_MODEL}")
+        print(f"[Crew] All-local mode: Ollama {OLLAMA_MODEL} + qwen3:8b tools")
 
     # Check Ollama is reachable
     try:
@@ -65,17 +68,19 @@ def _validate_setup():
         resp = urllib.request.urlopen(f"{OLLAMA_BASE_URL}/api/tags", timeout=3)
         data = json.loads(resp.read())
         models = [m["name"] for m in data.get("models", [])]
-        if not any(OLLAMA_MODEL in m for m in models):
-            print(f"[Crew] WARNING: {OLLAMA_MODEL} not in Ollama. Available: {models}")
+        available = [m for m in ["qwen3:8b", OLLAMA_MODEL] if any(OLLAMA_MODEL in n or m in n for n in models)]
+        if available:
+            print(f"[Crew] Ollama OK: {', '.join(available)}")
         else:
-            print(f"[Crew] Ollama OK: {OLLAMA_MODEL} available")
+            print(f"[Crew] WARNING: Expected models not found. Available: {models}")
     except Exception as e:
         print(f"[Crew] WARNING: Ollama not reachable at {OLLAMA_BASE_URL}: {e}")
 
 
 _validate_setup()
 
-if ANTHROPIC_API_KEY:
+if USE_CLAUDE and ANTHROPIC_API_KEY:
+    # Hybrid mode: Claude for complex reasoning, Ollama for tools
     brain_llm = LLM(
         model="anthropic/claude-sonnet-4-20250514",
         api_key=ANTHROPIC_API_KEY,
@@ -86,16 +91,15 @@ if ANTHROPIC_API_KEY:
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
     )
-    # campus-expert (fine-tuned 1.5B) doesn't support tool calling,
-    # so use qwen3:8b for agents that need tools
     tool_llm = LLM(
         model="ollama/qwen3:8b",
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
     )
 else:
+    # All-local mode: qwen3:8b for everything (no rate limits)
     brain_llm = LLM(
-        model=f"ollama/{OLLAMA_MODEL}",
+        model="ollama/qwen3:8b",
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
     )
@@ -403,7 +407,7 @@ def run():
     bus.emit(EventType.CREW_START, {"agents": 6, "tasks": 6})
     print("=" * 60)
     print("  CAMPUS FACTORY AI — Starting Campus Redesign")
-    if ANTHROPIC_API_KEY:
+    if USE_CLAUDE and ANTHROPIC_API_KEY:
         print("  Brain: Claude Sonnet | Light: Ollama", OLLAMA_MODEL)
     else:
         print("  All agents: Ollama", OLLAMA_MODEL)
