@@ -90,24 +90,30 @@ if USE_CLAUDE and ANTHROPIC_API_KEY:
         model=f"ollama/{OLLAMA_MODEL}",
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
+        timeout=600,
     )
     tool_llm = LLM(
         model="ollama/qwen3:8b",
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
+        timeout=600,
     )
 else:
     # All-local mode: OLLAMA_MODEL (brain) + qwen3:8b (tools) — no rate limits
+    # timeout=600 because qwen3 thinking mode generates 500-2000 tokens before responding
+    # and at ~10 tok/s with partial GPU offload, first token can take 60-120s
     brain_llm = LLM(
         model=f"ollama/{OLLAMA_MODEL}",
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
+        timeout=600,
     )
     # tool_llm: qwen3:8b for Scrum Master (needs tool calling support)
     tool_llm = LLM(
         model="ollama/qwen3:8b",
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
+        timeout=600,
     )
 
 
