@@ -196,6 +196,7 @@ def analyze_reference_images(description: str) -> str:
 
 def is_available() -> bool:
     """Check if DeerFlow is available (lazy health check)."""
-    if _deerflow_available is None:
-        _check_health()
-    return bool(_deerflow_available)
+    with _health_lock:
+        if _deerflow_available is None:
+            _check_health()
+        return bool(_deerflow_available)

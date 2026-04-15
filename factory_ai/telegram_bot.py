@@ -263,7 +263,7 @@ class TelegramReporter:
             return resp.status == 200
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, _do_post)
         except Exception as e:
             print(f"[Telegram] Review submit error: {e}")
@@ -279,7 +279,7 @@ class TelegramReporter:
                 resp = urllib.request.urlopen(url, timeout=5)
                 return json.loads(resp.read())
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             state = await loop.run_in_executor(None, _fetch_status)
 
             status = state.get("status", "unknown")

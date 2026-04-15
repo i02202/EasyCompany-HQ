@@ -102,8 +102,7 @@ class EventBus:
                 loop = q._loop if hasattr(q, '_loop') else None
                 if loop and loop.is_running():
                     loop.call_soon_threadsafe(q.put_nowait, event)
-                else:
-                    q.put_nowait(event)
+                # else: loop not running — queue is orphaned, drop safely
             except (asyncio.QueueFull, RuntimeError):
                 pass  # Drop if consumer is slow or loop closed
 

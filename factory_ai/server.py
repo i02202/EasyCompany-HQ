@@ -56,7 +56,7 @@ crew_state = {
 # Pending reviews queue (human-in-the-loop)
 pending_reviews: list[dict] = []
 review_responses: dict[int, dict] = {}  # event_id → response
-review_event = threading.Event()  # signals when a review is submitted
+review_condition = threading.Condition()  # signals when a review is submitted
 
 
 def update_state_from_event(event: Event):
@@ -250,9 +250,9 @@ async def submit_review(event_id: int, body: dict):
         "notes": notes,
     })
 
-    # Signal the crew thread that review is done, then reset for next review
-    review_event.set()
-    review_event.clear()
+    # Signal the crew thread that review is done
+    with review_condition:
+        review_condition.notify_all()
 
     return {"status": "ok", "action": action}
 
@@ -375,9 +375,9 @@ async def start_crew():
         raise HTTPException(409, "Crew is already running")
 
     def run_crew():
+        collector = None
         try:
             # Callbacks are now wired directly on Task objects in campus_crew.py
-            # No need to set crew.step_callback — that was WRONG
             from factory_ai.crews.campus_crew import campus_crew
             from factory_ai.crew_callbacks import DataCollector
 
@@ -386,7 +386,7 @@ async def start_crew():
             bus.on(collector.collect)
             crew_state["training"]["status"] = "collecting"
 
-            bus.emit(EventType.CREW_START, {"agents": 5, "tasks": 5})
+            bus.emit(EventType.CREW_START, {"agents": 6, "tasks": 6})
             result = campus_crew.kickoff()
 
             crew_state["training"]["examples_collected"] = collector.count
@@ -397,7 +397,8 @@ async def start_crew():
         except Exception as e:
             bus.emit(EventType.CREW_ERROR, {"error": str(e)})
         finally:
-            bus.off(collector.collect)
+            if collector is not None:
+                bus.off(collector.collect)
 
     thread = threading.Thread(target=run_crew, daemon=True)
     thread.start()

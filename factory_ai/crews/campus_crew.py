@@ -4,8 +4,8 @@ Campus Factory AI — CrewAI Campus Redesign Crew
 5 specialized agents with PROPERLY WIRED callbacks.
 
 Architecture:
-  - Claude API (brain_llm) → Architect, Art Director (complex reasoning)
-  - Ollama local (light_llm) → Researcher, QA, Scrum Master (lightweight)
+  - Default: Ollama gemma3:12b (brain) → all agents, qwen3:8b (tools) → Scrum Master
+  - Optional: USE_CLAUDE_BRAIN=true → Claude Sonnet (brain) + Ollama (light/tools)
   - DeerFlow SDK → Deep research subtasks (when available)
 
 Each Task has a .callback that emits events to the EventBus,
@@ -60,7 +60,7 @@ def _validate_setup():
     if USE_CLAUDE and ANTHROPIC_API_KEY:
         print(f"[Crew] Claude API enabled (brain) + Ollama {OLLAMA_MODEL} (light)")
     else:
-        print(f"[Crew] All-local mode: gemma3:12b (brain) + qwen3:8b (tools)")
+        print(f"[Crew] All-local mode: {OLLAMA_MODEL} (brain) + qwen3:8b (tools)")
 
     # Check Ollama is reachable
     try:
@@ -97,13 +97,13 @@ if USE_CLAUDE and ANTHROPIC_API_KEY:
         temperature=0.7,
     )
 else:
-    # All-local mode: gemma3:12b (brain) + qwen3:8b (tools) — no rate limits
+    # All-local mode: OLLAMA_MODEL (brain) + qwen3:8b (tools) — no rate limits
     brain_llm = LLM(
-        model="ollama/gemma3:12b",
+        model=f"ollama/{OLLAMA_MODEL}",
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
     )
-    light_llm = brain_llm
+    # tool_llm: qwen3:8b for Scrum Master (needs tool calling support)
     tool_llm = LLM(
         model="ollama/qwen3:8b",
         base_url=OLLAMA_BASE_URL,
@@ -398,7 +398,7 @@ task_summary = Task(
 
 campus_crew = Crew(
     agents=[researcher, architect, art_director, interior_designer, qa_reviewer, scrum_master],
-    tasks=[task_research, task_layout, task_visuals, task_interior, task_qa, task_summary],
+    tasks=[task_research, task_layout, task_interior, task_visuals, task_qa, task_summary],
     process=Process.sequential,
     verbose=True,
     memory=False,

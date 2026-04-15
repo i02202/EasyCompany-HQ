@@ -820,7 +820,7 @@ function renderZoneCards() {
     const densityClass = density < 0.05 ? 'density-sparse' : (density > 0.3 ? 'density-over' : 'density-ok');
     const densityPct = Math.min(density / 0.3 * 100, 100);
     const propChips = Object.entries(pdata.props || {}).map(([id, cnt]) =>
-      `<span class="prop-chip">${id}<span class="count">x${cnt}</span></span>`
+      `<span class="prop-chip">${escapeHtml(id)}<span class="count">x${escapeHtml(String(cnt))}</span></span>`
     ).join('');
 
     html += `
@@ -869,7 +869,7 @@ async function loadTileMappings() {
     const entries = Object.entries(data);
     document.getElementById('tileMappingCount').textContent = entries.length;
     document.getElementById('tileMappingList').innerHTML = entries.map(([id, tex]) =>
-      `<span class="prop-chip">${id} &rarr; ${tex}</span>`
+      `<span class="prop-chip">${escapeHtml(id)} &rarr; ${escapeHtml(tex)}</span>`
     ).join('');
   } catch(e) {}
 }
@@ -1015,10 +1015,11 @@ function addEventLog(event) {
   content = content.substring(0, 400);
 
   const div = document.createElement('div');
-  div.className = `event-item ${type} event-expand`;
+  const safeType = escapeHtml(type);
+  div.className = `event-item ${safeType} event-expand`;
   div.innerHTML = `
-    <span class="event-time">${time}</span>
-    <span class="event-type ${type}">${type}</span>
+    <span class="event-time">${escapeHtml(time)}</span>
+    <span class="event-type ${safeType}">${safeType}</span>
     <div class="event-content">${escapeHtml(content)}</div>
   `;
   log.appendChild(div);
@@ -1101,7 +1102,7 @@ async function fetchSystemInfo() {
       { name: 'Ollama', ok: d.ollama_running },
       { name: 'Telegram', ok: true },
       { name: 'DeerFlow', ok: deerflowOk, label: deerflowLabel },
-    ].map(a => `<div class="api-row"><div class="api-dot ${a.ok ? 'ok' : 'missing'}"></div>${a.name}${a.label ? ' <span style="color:var(--dim);font-size:9px">' + a.label + '</span>' : ''}</div>`).join('');
+    ].map(a => `<div class="api-row"><div class="api-dot ${a.ok ? 'ok' : 'missing'}"></div>${escapeHtml(a.name)}${a.label ? ' <span style="color:var(--dim);font-size:9px">' + escapeHtml(a.label) + '</span>' : ''}</div>`).join('');
   } catch(e) {}
 }
 

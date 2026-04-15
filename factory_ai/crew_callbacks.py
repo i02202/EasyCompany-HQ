@@ -45,8 +45,12 @@ def _detect_agent_from_step(step_output) -> str:
 def crew_step_callback(step_output, agent=None):
     """Called by CrewAI on every agent reasoning step (thought, tool, finish)."""
     try:
-        # Detect agent
-        detected = _detect_agent_from_step(step_output)
+        # Detect agent — prefer the agent param (CrewAI >= 0.55), fallback to log parsing
+        detected = ""
+        if agent is not None:
+            detected = getattr(agent, 'role', str(agent))
+        if not detected:
+            detected = _detect_agent_from_step(step_output)
         if detected:
             if detected != _active_agent["name"]:
                 # New agent started!
