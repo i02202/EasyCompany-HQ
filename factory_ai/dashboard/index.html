@@ -349,6 +349,23 @@
         <div id="apiKeysList" style="margin-top:4px"></div>
       </div>
     </div>
+
+    <div class="section-title">Gateway <span class="badge" id="gwBadge">--</span></div>
+    <div class="sys-grid">
+      <div class="sys-card">
+        <div class="label">Status</div>
+        <div class="value" id="gwStatus">...</div>
+        <div class="sub" id="gwDetail">--</div>
+      </div>
+      <div class="sys-card">
+        <div class="label">Requests</div>
+        <div class="value" id="gwRequests">0</div>
+        <div class="sub" id="gwTokens">0 tokens</div>
+      </div>
+    </div>
+
+    <div class="section-title">Routines <span class="badge" id="routineBadge">0</span></div>
+    <div id="routineList" style="padding:4px 0"></div>
   </div>
 
   <!-- ─── CENTER COLUMN: Tabs ─── -->
@@ -418,6 +435,11 @@
       </div>
     </div>
 
+    <div class="section-title">MemPalace <span class="badge" id="memBadge">0</span></div>
+    <div id="memPanel" style="padding:8px">
+      <div style="color:var(--dim);font-size:11px;text-align:center">No memories yet (first run)</div>
+    </div>
+
     <div class="section-title" style="margin-top:auto">
       Tile Mappings <span class="badge" id="tileMappingCount">0</span>
     </div>
@@ -428,12 +450,12 @@
 <script>
 // ─── Configuration ──────────────────────────────────────
 const AGENTS = [
-  { id: 'researcher',        name: 'Researcher',        role: 'Office Design Research',    llm: 'Claude' },
-  { id: 'architect',         name: 'Architect',         role: 'Campus Layout Design',      llm: 'Claude' },
-  { id: 'art_director',      name: 'Art Director',      role: 'Visual Style & Textures',   llm: 'Claude' },
-  { id: 'interior_designer', name: 'Interior Designer', role: 'Spatial Layout Optimizer',   llm: 'Claude' },
-  { id: 'qa_reviewer',       name: 'QA Reviewer',       role: 'Quality Validation',        llm: 'Claude' },
-  { id: 'scrum_master',      name: 'Scrum Master',      role: 'Coordination & Report',     llm: 'Ollama' },
+  { id: 'researcher',        name: 'Researcher',        role: 'Office Design Research',    llm: 'Gateway' },
+  { id: 'architect',         name: 'Architect',         role: 'Campus Layout Design',      llm: 'Gateway' },
+  { id: 'art_director',      name: 'Art Director',      role: 'Visual Style & Textures',   llm: 'Gateway' },
+  { id: 'interior_designer', name: 'Interior Designer', role: 'Spatial Layout Optimizer',   llm: 'Gateway' },
+  { id: 'qa_reviewer',       name: 'QA Reviewer',       role: 'Quality Validation',        llm: 'Gateway' },
+  { id: 'scrum_master',      name: 'Scrum Master',      role: 'Coordination & Report',     llm: 'Gateway' },
 ];
 
 const ZONE_COLORS = {
@@ -475,10 +497,16 @@ function init() {
   fetchSystemInfo();
   fetchTrainingDetail();
   fetchOutputs();
+  fetchGatewayStatus();
+  fetchRoutines();
+  fetchMemoryStats();
   setInterval(fetchSystemInfo, 30000);
   setInterval(fetchTrainingDetail, 30000);
   setInterval(fetchOutputs, 20000);
-  setInterval(loadZoneProps, 15000);  // Refresh prop data as agents work
+  setInterval(loadZoneProps, 15000);
+  setInterval(fetchGatewayStatus, 15000);
+  setInterval(fetchRoutines, 30000);
+  setInterval(fetchMemoryStats, 30000);
 }
 
 // ─── Agents ─────────────────────────────────
@@ -824,8 +852,8 @@ function renderZoneCards() {
     ).join('');
 
     html += `
-      <div class="zone-card" onclick="selectZone('${zname}', this)">
-        <div class="zone-card-name">${ZONE_NAMES[zname] || zname}</div>
+      <div class="zone-card" data-zone="${escapeHtml(zname)}" onclick="selectZone(this.dataset.zone, this)">
+        <div class="zone-card-name">${escapeHtml(ZONE_NAMES[zname] || zname)}</div>
         <div class="zone-card-stats">
           <span>${pdata.count} props</span>
           <span>${area} tiles</span>
@@ -878,8 +906,14 @@ async function loadTileMappings() {
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws`);
-  ws.onopen = () => { document.getElementById('wsDot').className = 'ws-dot on'; };
-  ws.onclose = () => { document.getElementById('wsDot').className = 'ws-dot off'; setTimeout(connectWS, 3000); };
+  ws.onopen = () => { document.getElementById('wsDot').className = 'ws-dot on'; window._wsRetries = 0; };
+  ws.onclose = () => {
+    document.getElementById('wsDot').className = 'ws-dot off';
+    // Exponential backoff: 3s → 6s → 12s → 24s → 30s max
+    const delay = Math.min(3000 * Math.pow(2, (window._wsRetries || 0)), 30000);
+    window._wsRetries = (window._wsRetries || 0) + 1;
+    setTimeout(connectWS, delay);
+  };
   ws.onmessage = (msg) => {
     let data;
     try { data = JSON.parse(msg.data); } catch(e) { return; }
@@ -1111,7 +1145,7 @@ async function fetchTrainingDetail() {
   try {
     const r = await fetch('/api/training/detail');
     const d = await r.json();
-    console.log('Training detail:', d);
+    // Training detail loaded (debug log removed)
 
     // Status — show "complete" if we have adapter+gguf+model, even if crew status is idle
     const pipelineDone = d.adapter_exists && d.gguf_exists && d.model_registered;
@@ -1190,6 +1224,97 @@ async function fetchOutputs() {
         </div>
       `;
     }).join('');
+  } catch(e) {}
+}
+
+// ─── Gateway Status ─────────────────────────────
+async function fetchGatewayStatus() {
+  try {
+    const r = await fetch('/api/gateway/status');
+    const d = await r.json();
+    const statusEl = document.getElementById('gwStatus');
+    const detailEl = document.getElementById('gwDetail');
+    const badgeEl = document.getElementById('gwBadge');
+    const reqEl = document.getElementById('gwRequests');
+    const tokEl = document.getElementById('gwTokens');
+
+    if (!d.enabled) {
+      statusEl.textContent = 'Disabled';
+      statusEl.className = 'value offline';
+      badgeEl.textContent = 'off';
+      return;
+    }
+    statusEl.textContent = d.available ? 'Online' : 'Offline';
+    statusEl.className = d.available ? 'value online' : 'value offline';
+    badgeEl.textContent = d.available ? 'ok' : 'err';
+
+    if (d.detail && d.detail.ollama_models) {
+      detailEl.textContent = d.detail.ollama_models.length + ' models';
+    }
+
+    if (d.metrics && d.metrics.total_requests !== undefined) {
+      reqEl.textContent = d.metrics.total_requests;
+      let totalTokens = 0;
+      for (const [k, v] of Object.entries(d.metrics.by_model_agent || {})) {
+        totalTokens += v.tokens || 0;
+      }
+      tokEl.textContent = totalTokens > 1000
+        ? (totalTokens/1000).toFixed(1) + 'K tokens'
+        : totalTokens + ' tokens';
+    }
+  } catch(e) {}
+}
+
+// ─── Routines ───────────────────────────────────
+async function fetchRoutines() {
+  try {
+    const r = await fetch('/api/routines');
+    const routines = await r.json();
+    const el = document.getElementById('routineList');
+    const badge = document.getElementById('routineBadge');
+    badge.textContent = routines.length;
+
+    el.innerHTML = routines.map(rt => {
+      const dot = rt.last_result && rt.last_result.startsWith('error')
+        ? '<span class="api-dot missing"></span>'
+        : '<span class="api-dot ok"></span>';
+      const status = rt.enabled ? (rt.last_run ? 'x' + rt.run_count : 'waiting') : 'off';
+      return `<div class="api-row">${dot}<span>${escapeHtml(rt.name)}</span>
+        <span style="margin-left:auto;color:var(--dim);font-size:10px">${status}</span></div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+// ─── MemPalace ──────────────────────────────────
+async function fetchMemoryStats() {
+  try {
+    const r = await fetch('/api/memory/stats');
+    const d = await r.json();
+    const badge = document.getElementById('memBadge');
+    const panel = document.getElementById('memPanel');
+    badge.textContent = d.total || 0;
+
+    if (d.total === 0) {
+      panel.innerHTML = '<div style="color:var(--dim);font-size:11px;text-align:center">No memories yet (first run)</div>';
+      return;
+    }
+
+    let html = '';
+    for (const [agent, count] of Object.entries(d.agents || {})) {
+      html += `<div class="api-row"><span class="api-dot ok"></span>
+        <span>${escapeHtml(agent)}</span>
+        <span style="margin-left:auto;color:var(--dim);font-size:10px">${count}</span></div>`;
+    }
+    if (d.shared > 0) {
+      html += `<div class="api-row"><span class="api-dot ok" style="background:var(--cyan)"></span>
+        <span>shared</span>
+        <span style="margin-left:auto;color:var(--dim);font-size:10px">${d.shared}</span></div>`;
+    }
+    if (d.meta && d.meta.last_maintenance) {
+      const ago = new Date(d.meta.last_maintenance);
+      html += `<div style="font-size:10px;color:var(--dim);padding:4px 12px">Last cleanup: ${ago.toLocaleTimeString()}</div>`;
+    }
+    panel.innerHTML = html;
   } catch(e) {}
 }
 

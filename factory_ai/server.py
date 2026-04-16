@@ -26,7 +26,7 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 # Load .env at server startup
 load_dotenv(Path(__file__).parent.parent / ".env", override=True)
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -123,6 +123,19 @@ def update_state_from_event(event: Event):
 
 bus.on(update_state_from_event)
 
+# ─── Gateway (auto-start) ────────────────────────────────────────────────
+from factory_ai.config import GATEWAY_ENABLED
+if GATEWAY_ENABLED:
+    def _start_gateway():
+        try:
+            import uvicorn
+            from factory_ai.gateway import app as gateway_app, GATEWAY_PORT
+            print(f"[Server] Starting Gateway on port {GATEWAY_PORT}")
+            uvicorn.run(gateway_app, host="0.0.0.0", port=GATEWAY_PORT, log_level="warning")
+        except Exception as e:
+            print(f"[Server] Gateway failed: {e}")
+    threading.Thread(target=_start_gateway, daemon=True).start()
+
 # ─── DeerFlow (auto-start) ───────────────────────────────────────────────
 try:
     from factory_ai.deerflow_launcher import start as deerflow_start
@@ -136,6 +149,13 @@ try:
     telegram_reporter.start()
 except Exception as e:
     print(f"[Server] Telegram bot failed to start: {e}")
+
+# ─── Routines (auto-start) ───────────────────────────────────────────────
+try:
+    from factory_ai.routines import manager as routine_manager
+    routine_manager.start_all()
+except Exception as e:
+    print(f"[Server] Routines failed to start: {e}")
 
 
 # ─── WebSocket ─────────────────────────────────────────────────────────────
@@ -237,7 +257,7 @@ async def get_pending_reviews():
 
 
 @app.post("/api/reviews/{event_id}")
-async def submit_review(event_id: int, body: dict):
+async def submit_review(event_id: int, body: dict = Body(default={})):
     """Submit a human review decision."""
     action = body.get("action", "approve")  # approve | reject | modify
     notes = body.get("notes", "")
@@ -302,16 +322,22 @@ async def get_training_status():
 
 
 @app.post("/api/training/start")
-async def start_training(body: dict = {}):
+async def start_training(body: dict = Body(default={})):
     """Launch fine-tuning in a background thread."""
     if crew_state["training"]["status"] == "training":
         raise HTTPException(409, "Training already in progress")
 
+    # Set status BEFORE spawning thread to prevent race condition
+    crew_state["training"]["status"] = "training"
     epochs = body.get("epochs", 3)
 
     def run_training():
-        from factory_ai.training import run_training
-        run_training(epochs=epochs)
+        try:
+            from factory_ai.training import run_training
+            run_training(epochs=epochs)
+        except Exception as e:
+            crew_state["training"]["status"] = "idle"
+            bus.emit(EventType.CREW_ERROR, {"error": f"Training failed: {e}"})
 
     thread = threading.Thread(target=run_training, daemon=True)
     thread.start()
@@ -374,6 +400,51 @@ async def get_deerflow_status():
     else:
         info["detail"] = "Gateway offline — using DDG fallback"
     return info
+
+
+@app.get("/api/gateway/status")
+async def get_gateway_status():
+    """Check Gateway health and metrics."""
+    from factory_ai.config import GATEWAY_URL, GATEWAY_ENABLED
+    if not GATEWAY_ENABLED:
+        return {"enabled": False, "detail": "Gateway disabled (GATEWAY_ENABLED=false)"}
+    info = {"enabled": True, "url": GATEWAY_URL, "available": False, "metrics": {}}
+    try:
+        import urllib.request
+        resp = urllib.request.urlopen(f"{GATEWAY_URL}/api/health", timeout=3)
+        data = json.loads(resp.read())
+        info["available"] = True
+        info["detail"] = data
+    except Exception as e:
+        info["detail"] = f"Offline: {e}"
+    try:
+        import urllib.request
+        resp = urllib.request.urlopen(f"{GATEWAY_URL}/api/metrics", timeout=3)
+        info["metrics"] = json.loads(resp.read())
+    except Exception:
+        pass
+    return info
+
+
+@app.get("/api/routines")
+async def get_routines():
+    """Get status of all automated routines."""
+    from factory_ai.routines import manager as routine_manager
+    return routine_manager.get_status()
+
+
+@app.get("/api/memory/stats")
+async def get_memory_stats():
+    """Get MemPalace memory statistics."""
+    from factory_ai.memory import get_stats
+    return get_stats()
+
+
+@app.post("/api/memory/maintain")
+async def run_memory_maintenance():
+    """Trigger memory maintenance manually."""
+    from factory_ai.memory import maintain
+    return maintain()
 
 
 @app.post("/api/crew/start")

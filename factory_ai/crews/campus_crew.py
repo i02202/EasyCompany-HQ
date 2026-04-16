@@ -1,12 +1,14 @@
 """
 Campus Factory AI — CrewAI Campus Redesign Crew
 ================================================
-5 specialized agents with PROPERLY WIRED callbacks.
+6 specialized agents with PROPERLY WIRED callbacks.
 
 Architecture:
-  - Default: Ollama gemma3:12b (brain) → all agents, qwen3:8b (tools) → Scrum Master
-  - Optional: USE_CLAUDE_BRAIN=true → Claude Sonnet (brain) + Ollama (light/tools)
-  - DeerFlow SDK → Deep research subtasks (when available)
+  - Default (Gateway mode): gemma3:12b via Gateway (:6000) → Ollama
+    Gateway injects tool calling for models without native support + metrics
+  - Direct mode (GATEWAY_ENABLED=false): Ollama direct (needs qwen3:8b or similar)
+  - Claude mode (USE_CLAUDE_BRAIN=true): Claude Sonnet (brain) + Ollama (tools)
+  - DeerFlow SDK → Deep research subtasks (Researcher agent only)
 
 Each Task has a .callback that emits events to the EventBus,
 which feeds the dashboard, Telegram bot, and training data collector.
@@ -21,13 +23,13 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env", override=True)
 
 from crewai import Agent, Task, Crew, Process, LLM
 
-from factory_ai.config import OLLAMA_BASE_URL, OLLAMA_MODEL, ZONES, OUTPUT_DIR
+from factory_ai.config import OLLAMA_BASE_URL, OLLAMA_MODEL, ZONES, OUTPUT_DIR, GATEWAY_URL, GATEWAY_ENABLED
 from factory_ai.events import bus, EventType
 from factory_ai.crew_callbacks import crew_step_callback, make_task_callback
 from factory_ai.tools.campus_tools import (
     read_campus_layout, read_campus_props, read_tile_atlas,
     read_campus_wander, get_zone_specs, list_available_tiles,
-    list_asset_packs, write_campus_props, write_zone_props,
+    list_asset_packs, write_campus_props, write_zone_props, write_all_zone_props,
     write_tile_atlas, write_tile_mapping, write_design_report, analyze_prop_coverage,
 )
 from factory_ai.tools.research_tools import (
@@ -48,19 +50,35 @@ from factory_ai.tools.asset_gen_tools import (
 )
 
 # ─── LLM Configuration ─────────────────────────────────────────────────────
+#
+# Three modes:
+#   1. Gateway mode (default): CrewAI → Gateway (:6000) → Ollama
+#      - Tool calling injection for models without native support (gemma3)
+#      - Observability: token tracking, latency per agent
+#      - Single brain_llm for ALL agents (gemma3:12b handles tools via gateway)
+#
+#   2. Direct Ollama mode (GATEWAY_ENABLED=false): CrewAI → Ollama directly
+#      - Requires a model with native tool calling (qwen3:8b)
+#      - No metrics, no tool injection
+#
+#   3. Claude mode (USE_CLAUDE_BRAIN=true): Claude API for brain + Ollama for light
+#
 
-# Claude API key kept for optional future use (e.g., single high-quality runs)
-# Default: all agents on Ollama local to avoid rate limits
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 USE_CLAUDE = os.getenv("USE_CLAUDE_BRAIN", "").lower() in ("1", "true", "yes")
+
+# Shared Ollama options
+_ollama_opts = {"num_ctx": 8192}
 
 
 def _validate_setup():
     """Validate LLM connectivity at import time."""
     if USE_CLAUDE and ANTHROPIC_API_KEY:
         print(f"[Crew] Claude API enabled (brain) + Ollama {OLLAMA_MODEL} (light)")
+    elif GATEWAY_ENABLED:
+        print(f"[Crew] Gateway mode: {OLLAMA_MODEL} via {GATEWAY_URL} (tool injection + metrics)")
     else:
-        print(f"[Crew] All-local mode: {OLLAMA_MODEL} (brain) + qwen3:8b (tools)")
+        print(f"[Crew] Direct Ollama mode: {OLLAMA_MODEL} (needs native tool support)")
 
     # Check Ollama is reachable
     try:
@@ -68,41 +86,55 @@ def _validate_setup():
         resp = urllib.request.urlopen(f"{OLLAMA_BASE_URL}/api/tags", timeout=3)
         data = json.loads(resp.read())
         models = [m["name"] for m in data.get("models", [])]
-        available = [m for m in ["qwen3:8b", OLLAMA_MODEL] if any(OLLAMA_MODEL in n or m in n for n in models)]
-        if available:
-            print(f"[Crew] Ollama OK: {', '.join(available)}")
+        if OLLAMA_MODEL.split(":")[0] in " ".join(models):
+            print(f"[Crew] Ollama OK: {OLLAMA_MODEL} found")
         else:
-            print(f"[Crew] WARNING: Expected models not found. Available: {models}")
+            print(f"[Crew] WARNING: {OLLAMA_MODEL} not found. Available: {models}")
     except Exception as e:
         print(f"[Crew] WARNING: Ollama not reachable at {OLLAMA_BASE_URL}: {e}")
+
+    # Check Gateway if enabled
+    if GATEWAY_ENABLED:
+        try:
+            import urllib.request
+            resp = urllib.request.urlopen(f"{GATEWAY_URL}/api/health", timeout=3)
+            data = json.loads(resp.read())
+            print(f"[Crew] Gateway OK: {data.get('status', '?')}")
+        except Exception as e:
+            print(f"[Crew] WARNING: Gateway not reachable at {GATEWAY_URL}: {e}")
 
 
 _validate_setup()
 
 if USE_CLAUDE and ANTHROPIC_API_KEY:
-    # Hybrid mode: Claude for complex reasoning, Ollama for tools
+    # Hybrid mode: Claude for complex reasoning, Ollama for light tasks
     brain_llm = LLM(
         model="anthropic/claude-sonnet-4-20250514",
         api_key=ANTHROPIC_API_KEY,
         temperature=0.7,
     )
-    light_llm = LLM(
+    tool_llm = LLM(
         model=f"ollama/{OLLAMA_MODEL}",
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
         timeout=600,
+        extra_body={"options": _ollama_opts},
     )
-    tool_llm = LLM(
-        model="ollama/qwen3:8b",
-        base_url=OLLAMA_BASE_URL,
+elif GATEWAY_ENABLED:
+    # Gateway mode: ALL agents use the same LLM routed through gateway
+    # Gateway handles tool calling injection for models like gemma3:12b
+    # LiteLLM sees it as an "OpenAI-compatible" endpoint
+    brain_llm = LLM(
+        model=f"openai/{OLLAMA_MODEL}",   # LiteLLM "openai/" prefix → custom base_url
+        base_url=f"{GATEWAY_URL}/v1",
+        api_key="not-needed",             # Gateway doesn't require auth
         temperature=0.7,
         timeout=600,
     )
+    # With gateway, gemma3 can do tools — no need for separate tool_llm
+    tool_llm = brain_llm
 else:
-    # All-local mode: OLLAMA_MODEL (brain) + qwen3:8b (tools) — no rate limits
-    # timeout=600 for slow local inference on RTX 4060 (partial CPU offload)
-    # num_ctx=8192 to avoid context bloat (default 40960 wastes memory)
-    _ollama_opts = {"num_ctx": 8192}
+    # Direct Ollama mode — model must support native tool calling
     brain_llm = LLM(
         model=f"ollama/{OLLAMA_MODEL}",
         base_url=OLLAMA_BASE_URL,
@@ -110,14 +142,7 @@ else:
         timeout=600,
         extra_body={"options": _ollama_opts},
     )
-    # tool_llm: qwen3:8b for Scrum Master (needs tool calling support)
-    tool_llm = LLM(
-        model="ollama/qwen3:8b",
-        base_url=OLLAMA_BASE_URL,
-        temperature=0.7,
-        timeout=600,
-        extra_body={"options": _ollama_opts},
-    )
+    tool_llm = brain_llm
 
 
 # ─── Task Callbacks ──────────────────────────────────────────────────────
@@ -125,136 +150,63 @@ else:
 # make_task_callback (imported) → per-task factory, emits AGENT_START + TASK_COMPLETE
 
 
-# ─── Agent Definitions ──────────────────────────────────────────────────────
+# ─── Agent Definitions (loaded from .md files) ──────────────────────────────
+# Agents are defined declaratively in factory_ai/agents/*.md
+# Edit those files to change agent behavior — no Python changes needed.
 
-researcher = Agent(
-    role="Office Design Researcher",
-    goal="Find the best modern tech office design references, furniture layouts, "
-         "and isometric game art examples that match our campus spec.",
-    backstory=(
-        "You are a design researcher specializing in modern tech company offices "
-        "(Google, Apple, WeWork style). You know isometric pixel art games like "
-        "Project Zomboid, Habbo Hotel, and Two Point Hospital. Your job is to "
-        "research what a world-class tech campus looks like and provide detailed "
-        "reference information to the architect and art director."
-    ),
-    tools=[
-        search_office_design, search_isometric_reference, search_furniture_dimensions,
-        deep_research, analyze_reference_images,  # DeerFlow only for Researcher
-        list_missing_textures,
-    ],
-    llm=brain_llm,
-    verbose=True,
-    max_iter=6,
-)
+from factory_ai.agent_loader import load_all_agents, register_tools
+from factory_ai.memory import build_memory_prompt
 
-architect = Agent(
-    role="Campus Architect",
-    goal="Design the optimal furniture layout for each of the 13 zones, ensuring "
-         "proper proportions, realistic spacing, and functional room definitions.",
-    backstory=(
-        "You are an expert in spatial design for isometric game environments. "
-        "You understand that in our 40x40 grid, each tile is 128x64 pixels in "
-        "isometric projection. Props have width (w) and height (h) in grid tiles. "
-        "A standard desk is 2.5x1.5 tiles, a chair is 1x1, a sofa is 3x1.5. "
-        "You ensure rooms have realistic furniture density — not too sparse, not "
-        "overcrowded. Each zone must clearly communicate its function through "
-        "furniture placement. Corridors (row 9-10, 19, 25, 32-33) must remain clear."
-    ),
-    tools=[
-        read_campus_layout, read_campus_props, get_zone_specs,
-        analyze_prop_coverage, write_zone_props, request_layout_review,
-    ],
-    llm=brain_llm,
-    verbose=True,
-    max_iter=6,
-)
+# Register all tools so the loader can resolve names from .md files
+register_tools({
+    "read_campus_layout": read_campus_layout,
+    "read_campus_props": read_campus_props,
+    "read_tile_atlas": read_tile_atlas,
+    "read_campus_wander": read_campus_wander,
+    "get_zone_specs": get_zone_specs,
+    "list_available_tiles": list_available_tiles,
+    "list_asset_packs": list_asset_packs,
+    "write_campus_props": write_campus_props,
+    "write_zone_props": write_zone_props,
+    "write_all_zone_props": write_all_zone_props,
+    "write_tile_atlas": write_tile_atlas,
+    "write_tile_mapping": write_tile_mapping,
+    "write_design_report": write_design_report,
+    "analyze_prop_coverage": analyze_prop_coverage,
+    "search_office_design": search_office_design,
+    "search_isometric_reference": search_isometric_reference,
+    "search_furniture_dimensions": search_furniture_dimensions,
+    "request_layout_review": request_layout_review,
+    "request_visual_review": request_visual_review,
+    "request_qa_review": request_qa_review,
+    "deep_research": deep_research,
+    "analyze_reference_images": analyze_reference_images,
+    "get_layout_template": get_layout_template,
+    "get_placement_rules": get_placement_rules,
+    "validate_zone_layout": validate_zone_layout,
+    "redesign_zone_layout": redesign_zone_layout,
+    "compute_smart_layout": compute_smart_layout,
+    "generate_prop_texture": generate_prop_texture,
+    "generate_zone_textures": generate_zone_textures,
+    "list_missing_textures": list_missing_textures,
+})
 
-art_director = Agent(
-    role="Visual Art Director",
-    goal="Define the visual style for each zone — which Pixel Salvaje tiles to use "
-         "for each prop, color consistency, size proportions, and fallback geometric styles.",
-    backstory=(
-        "You are a pixel art director who has worked on isometric games. You know "
-        "that visual consistency is critical — all furniture in a zone should use "
-        "the same art style and scale. You map each prop ID to the best available "
-        "Pixel Salvaje tile texture, ensuring: (1) Consistent pixel density across "
-        "all props, (2) Color harmony within each zone, (3) Proper isometric "
-        "perspective for all items, (4) Fallback geometric styles that match the "
-        "tile art quality. You produce the TileAtlas.ts mapping."
-    ),
-    tools=[
-        list_available_tiles, list_asset_packs, read_tile_atlas,
-        get_zone_specs, write_tile_mapping, write_tile_atlas, write_design_report, request_visual_review,
-        generate_prop_texture, generate_zone_textures, list_missing_textures,
-    ],
-    llm=brain_llm,
-    verbose=True,
-    max_iter=6,
-)
+# Load agents from .md files
+_agents = load_all_agents({"brain": brain_llm, "tool": tool_llm})
 
-qa_reviewer = Agent(
-    role="Quality Assurance Reviewer",
-    goal="Validate the campus design against specifications — check prop coverage, "
-         "proportions, zone function match, and identify issues.",
-    backstory=(
-        "You are meticulous about quality. You check: (1) Every zone has enough "
-        "props to look furnished but not cluttered, (2) Props don't overlap or "
-        "extend beyond zone boundaries, (3) Each zone's furniture matches its "
-        "function (server racks in data center, not sofas), (4) Proportions are "
-        "consistent (a chair shouldn't be bigger than a desk), (5) All corridors "
-        "remain walkable, (6) Door positions are logical."
-    ),
-    tools=[
-        read_campus_props, read_campus_layout, get_zone_specs,
-        analyze_prop_coverage, read_tile_atlas, request_qa_review,
-    ],
-    llm=brain_llm,
-    verbose=True,
-    max_iter=4,
-)
+researcher = _agents["researcher"]
+architect = _agents["architect"]
+art_director = _agents["art_director"]
+interior_designer = _agents["interior_designer"]
+qa_reviewer = _agents["qa_reviewer"]
+scrum_master = _agents["scrum_master"]
 
-interior_designer = Agent(
-    role="Interior Designer",
-    goal="Optimize furniture placement in every zone using real interior design "
-         "principles — spatial flow, functional grouping, wall adjacency, and "
-         "circulation corridors.",
-    backstory=(
-        "You are a professional interior designer who specializes in tech office "
-        "spaces. You understand spatial relationships deeply: server racks belong "
-        "against walls in rows, desks cluster in work pods with chairs facing them, "
-        "plants accent corners and entryways, screens center on walls as focal "
-        "points, and every room needs clear circulation paths. You take the "
-        "architect's raw prop list and REDESIGN the layout using proper spatial "
-        "rules. You validate every zone against constraints (no overlaps, wall "
-        "adjacency for mounted items, chair-desk pairing) and auto-fix violations. "
-        "Your output is a polished, realistic office layout that looks intentional, "
-        "not random."
-    ),
-    tools=[
-        get_layout_template, get_placement_rules, validate_zone_layout,
-        redesign_zone_layout, compute_smart_layout, get_zone_specs,
-    ],
-    llm=brain_llm,
-    verbose=True,
-    max_iter=6,
-)
-
-scrum_master = Agent(
-    role="Scrum Master / Coordinator",
-    goal="Coordinate the team, ensure smooth handoffs between agents, track progress, "
-         "and produce the final summary report.",
-    backstory=(
-        "You are the project coordinator for the Easy Company HQ campus redesign. "
-        "You ensure the researcher provides actionable references, the architect "
-        "produces a complete layout, the art director maps all textures, and the "
-        "QA reviewer catches all issues. You produce the final summary."
-    ),
-    tools=[get_zone_specs, analyze_prop_coverage, write_design_report],
-    llm=tool_llm,  # campus-expert doesn't support tools, use qwen3:8b
-    verbose=True,
-    max_iter=6,
-)
+# Inject MemPalace memories into agent backstories (enriches with past learnings)
+for name, agent in _agents.items():
+    memory_ctx = build_memory_prompt(name)
+    if memory_ctx:
+        agent.backstory = (agent.backstory or "") + memory_ctx
+        print(f"[Crew] MemPalace: injected memories for {name}")
 
 # ─── Task Definitions (WITH CALLBACKS) ─────────────────────────────────────
 
@@ -347,19 +299,33 @@ campus_crew = Crew(
 
 def run():
     """Execute the campus redesign crew."""
+    from factory_ai.memory import remember, remember_shared
+
     bus.emit(EventType.CREW_START, {"agents": 6, "tasks": 6})
+    mode = "Gateway" if GATEWAY_ENABLED else ("Claude" if USE_CLAUDE else "Direct")
     print("=" * 60)
     print("  CAMPUS FACTORY AI — Starting Campus Redesign")
-    if USE_CLAUDE and ANTHROPIC_API_KEY:
-        print("  Brain: Claude Sonnet | Light: Ollama", OLLAMA_MODEL)
-    else:
-        print("  All agents: Ollama", OLLAMA_MODEL)
+    print(f"  Mode: {mode} | Model: {OLLAMA_MODEL}")
     print("  Agents: Researcher, Architect, Art Director, Interior Designer, QA, Scrum Master")
     print("=" * 60)
     try:
         result = campus_crew.kickoff()
         bus.emit(EventType.CREW_COMPLETE, {"result_preview": str(result)[:500]})
+
+        # Save learnings to MemPalace for future runs
+        remember_shared(
+            f"Crew run completed successfully with {OLLAMA_MODEL} in {mode} mode.",
+            source_agent="system",
+            category="milestone",
+        )
+
         return result
     except Exception as e:
         bus.emit(EventType.CREW_ERROR, {"error": str(e)})
+        # Remember failures too — helps avoid repeating mistakes
+        remember_shared(
+            f"Crew run failed: {str(e)[:200]}",
+            source_agent="system",
+            category="mistake",
+        )
         raise

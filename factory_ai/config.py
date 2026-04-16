@@ -23,7 +23,11 @@ PROP_SPRITE = SRC_DIR / "phaser" / "entities" / "PropSprite.ts"
 
 # Ollama
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:12b")
+
+# Gateway (Nexus Router) — sits between CrewAI and Ollama for tool injection + metrics
+GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:6000")
+GATEWAY_ENABLED = os.getenv("GATEWAY_ENABLED", "true").lower() in ("1", "true", "yes")
 
 # DeerFlow
 DEERFLOW_URL = os.getenv("DEERFLOW_URL", "http://localhost:8001")
