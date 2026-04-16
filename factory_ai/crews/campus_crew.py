@@ -100,13 +100,15 @@ if USE_CLAUDE and ANTHROPIC_API_KEY:
     )
 else:
     # All-local mode: OLLAMA_MODEL (brain) + qwen3:8b (tools) — no rate limits
-    # timeout=600 because qwen3 thinking mode generates 500-2000 tokens before responding
-    # and at ~10 tok/s with partial GPU offload, first token can take 60-120s
+    # timeout=600 for slow local inference on RTX 4060 (partial CPU offload)
+    # num_ctx=8192 to avoid context bloat (default 40960 wastes memory)
+    _ollama_opts = {"num_ctx": 8192}
     brain_llm = LLM(
         model=f"ollama/{OLLAMA_MODEL}",
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
         timeout=600,
+        extra_body={"options": _ollama_opts},
     )
     # tool_llm: qwen3:8b for Scrum Master (needs tool calling support)
     tool_llm = LLM(
@@ -114,6 +116,7 @@ else:
         base_url=OLLAMA_BASE_URL,
         temperature=0.7,
         timeout=600,
+        extra_body={"options": _ollama_opts},
     )
 
 
@@ -137,12 +140,12 @@ researcher = Agent(
     ),
     tools=[
         search_office_design, search_isometric_reference, search_furniture_dimensions,
-        deep_research, analyze_reference_images,  # DeerFlow swarm tools
-        list_missing_textures,  # Check what textures we need
+        deep_research, analyze_reference_images,  # DeerFlow only for Researcher
+        list_missing_textures,
     ],
-    llm=brain_llm,  # Researcher on Claude for speed (Ollama was 10+ min)
+    llm=brain_llm,
     verbose=True,
-    max_iter=8,
+    max_iter=6,
 )
 
 architect = Agent(
@@ -161,11 +164,10 @@ architect = Agent(
     tools=[
         read_campus_layout, read_campus_props, get_zone_specs,
         analyze_prop_coverage, write_zone_props, request_layout_review,
-        deep_research,  # DeerFlow for zone-specific research
     ],
     llm=brain_llm,
     verbose=True,
-    max_iter=25,
+    max_iter=6,
 )
 
 art_director = Agent(
@@ -184,12 +186,11 @@ art_director = Agent(
     tools=[
         list_available_tiles, list_asset_packs, read_tile_atlas,
         get_zone_specs, write_tile_mapping, write_tile_atlas, write_design_report, request_visual_review,
-        generate_prop_texture, generate_zone_textures, list_missing_textures,  # fal.ai asset gen
-        deep_research, analyze_reference_images,  # DeerFlow for visual research
+        generate_prop_texture, generate_zone_textures, list_missing_textures,
     ],
     llm=brain_llm,
     verbose=True,
-    max_iter=20,
+    max_iter=6,
 )
 
 qa_reviewer = Agent(
@@ -207,11 +208,10 @@ qa_reviewer = Agent(
     tools=[
         read_campus_props, read_campus_layout, get_zone_specs,
         analyze_prop_coverage, read_tile_atlas, request_qa_review,
-        deep_research,  # DeerFlow for standards validation research
     ],
-    llm=brain_llm,  # QA on Claude for speed + accuracy
+    llm=brain_llm,
     verbose=True,
-    max_iter=8,
+    max_iter=4,
 )
 
 interior_designer = Agent(
@@ -234,11 +234,10 @@ interior_designer = Agent(
     tools=[
         get_layout_template, get_placement_rules, validate_zone_layout,
         redesign_zone_layout, compute_smart_layout, get_zone_specs,
-        deep_research,  # DeerFlow for spatial design research
     ],
     llm=brain_llm,
     verbose=True,
-    max_iter=20,
+    max_iter=6,
 )
 
 scrum_master = Agent(
@@ -263,55 +262,26 @@ zone_list = "\n".join(f"  - {name}: {spec['function']}" for name, spec in ZONES.
 
 task_research = Task(
     description=(
-        f"Research modern tech office design for a campus with these 13 zones:\n"
-        f"{zone_list}\n\n"
-        "For each zone, find:\n"
-        "1. What furniture is typically found in that type of room — aim for 20-35 items per zone\n"
-        "2. Standard furniture proportions (width x depth in meters)\n"
-        "3. Include VARIETY: don't just list desks and chairs. Include:\n"
-        "   - Acoustic panels, room dividers, privacy screens\n"
-        "   - Cable trays, monitor arms, standing desk converters\n"
-        "   - Whiteboards (mobile), projectors, video conferencing units\n"
-        "   - Kitchen items: dishwasher, toaster, water cooler, trash/recycling\n"
-        "   - Decor: wall art, clocks, rugs, coat racks, umbrella stands\n"
-        "   - Reception desks, filing cabinets, lockers, fire extinguishers\n"
-        "4. Visual reference for isometric pixel art renderings of similar rooms\n"
-        "5. Use list_missing_textures to check which props need new textures generated\n\n"
-        "IMPORTANT: Each zone should have 20-35 unique prop types. Previous iteration "
-        "only had 9-20 per zone. Be comprehensive! A real office has MANY small items."
+        f"Research furniture for these 13 zones:\n{zone_list}\n\n"
+        "Per zone: list 20-35 prop types with dimensions (w x d in meters). "
+        "Include variety: acoustic panels, cable trays, whiteboards, kitchen items, decor, lockers. "
+        "Use deep_research for comprehensive info. Use list_missing_textures to check gaps."
     ),
-    expected_output=(
-        "A structured report with furniture recommendations per zone, including "
-        "item counts, proportions, and placement guidelines."
-    ),
+    expected_output="Structured furniture report per zone: items, proportions, placement notes.",
     agent=researcher,
     callback=make_task_callback("Research", "Researcher", OUTPUT_DIR),
 )
 
 task_layout = Task(
     description=(
-        "Using the researcher's findings and the current campus data, redesign the "
-        "prop placements for ALL 13 zones. You must:\n\n"
-        "1. Read the current campus-props.ts and campus-layout.ts\n"
-        "2. Analyze current prop coverage to identify sparse/overcrowded zones\n"
-        "3. For each zone, design a complete furniture layout that:\n"
-        "   - Matches the zone's function (use the zone specs)\n"
-        "   - Has realistic proportions (desks ~2.5x1.5, chairs ~1x1, sofas ~3x1.5)\n"
-        "   - Includes ALL necessary furniture types\n"
-        "   - Respects zone boundaries\n"
-        "   - Leaves walkable paths between furniture clusters\n"
-        "   - Includes proper anchor points for agent seating/standing\n"
-        "4. Use write_zone_props tool to save props for EACH zone separately.\n"
-        "   Call it 13 times, once per zone. Pass zone_name and props_json.\n"
-        "   Example: write_zone_props(zone_name='data_center', props_json='[{\"id\":\"server_rack\",\"x\":2,\"y\":2,\"w\":1,\"h\":2,\"layer\":\"below\",\"anchors\":[]}]')\n"
-        "5. IMPORTANT: Use request_layout_review to submit a summary for human review.\n\n"
-        "CRITICAL: Every prop must have valid x,y within its zone's grid bounds. "
-        "Props must not overlap. Corridors must remain empty."
+        "Redesign prop placements for all 13 zones using the research findings.\n"
+        "1. Read campus-props.ts and campus-layout.ts, analyze coverage\n"
+        "2. Design layout per zone: realistic proportions, no overlaps, walkable paths\n"
+        "3. Use write_zone_props for each zone (13 calls)\n"
+        "4. Use request_layout_review to submit for approval\n"
+        "Props must be within zone bounds. Corridors (rows 9-10, 19, 25, 32-33) stay empty."
     ),
-    expected_output=(
-        "A complete campus-props.ts TypeScript file with all prop placements for "
-        "all 13 zones, following the PropPlacement interface."
-    ),
+    expected_output="All 13 zones saved via write_zone_props + layout review submitted.",
     agent=architect,
     context=[task_research],
     callback=make_task_callback("Layout", "Architect", OUTPUT_DIR),
@@ -319,22 +289,13 @@ task_layout = Task(
 
 task_visuals = Task(
     description=(
-        "Review the architect's prop layout and the available tile textures, then:\n\n"
-        "1. List all available Pixel Salvaje tiles on disk using list_available_tiles\n"
-        "2. For each prop ID used in the layout, assign the best matching tile texture\n"
-        "3. Ensure visual consistency within each zone\n"
-        "4. Use write_tile_mapping tool to save the prop-to-tile mappings as JSON.\n"
-        "   Call it with a JSON object: write_tile_mapping(mappings_json='{\"desk\":\"desk.png\",\"chair\":\"gaming-chair-a.png\"}')\n"
-        "   You can call it multiple times — entries accumulate.\n"
-        "5. Write a design report explaining your visual choices per zone\n"
-        "6. Use request_visual_review to submit for human review.\n\n"
-        "IMPORTANT: Only map to tiles that actually exist in assets/tiles/.\n"
-        "DO NOT use write_tile_atlas — use write_tile_mapping instead (JSON format, more reliable)."
+        "Map each prop ID to a Pixel Salvaje tile texture.\n"
+        "1. Use list_available_tiles to see what exists on disk\n"
+        "2. Use write_tile_mapping to save prop→tile JSON mappings\n"
+        "3. Write a design report, then request_visual_review\n"
+        "Only map to tiles that exist in assets/tiles/. Use write_tile_mapping (not write_tile_atlas)."
     ),
-    expected_output=(
-        "An updated TileAtlas.ts file mapping all prop IDs to tile textures, "
-        "plus a design report with visual specifications per zone."
-    ),
+    expected_output="Tile mappings saved + design report + visual review submitted.",
     agent=art_director,
     context=[task_layout],
     callback=make_task_callback("Visuals", "Art Director", OUTPUT_DIR),
@@ -342,29 +303,12 @@ task_visuals = Task(
 
 task_interior = Task(
     description=(
-        "You are the Interior Designer. The Architect has placed props in all 13 zones, "
-        "but the layouts may be spatially naive (random positions, chairs not facing desks, "
-        "racks in the middle of rooms, no circulation paths). Your job:\n\n"
-        "FOR EACH OF THE 13 ZONES:\n"
-        "1. Use get_layout_template to get the recommended layout rules for the zone\n"
-        "2. Use compute_smart_layout to generate an optimized layout\n"
-        "3. Review the result — does it make spatial sense?\n"
-        "4. Use redesign_zone_layout to save the improved layout (with auto-fix)\n"
-        "5. Use validate_zone_layout to confirm no errors remain\n\n"
-        "DESIGN PRINCIPLES TO FOLLOW:\n"
-        "- Wall-huggers: server_rack, bookshelf, whiteboard, screens → AGAINST WALLS\n"
-        "- Desk clusters: desks in rows/pods with chairs facing them (offset +1 in y)\n"
-        "- Circulation: leave 1-tile corridors between furniture groups\n"
-        "- Corners: plants, decorative items\n"
-        "- Focal points: TVs/screens centered on walls\n"
-        "- Functional grouping: work items together, lounge items together\n\n"
-        "Use get_placement_rules to see the full rulebook if needed.\n"
-        "Process ALL 13 zones. Do not skip any."
+        "Optimize prop placement for all 13 zones using interior design principles.\n"
+        "Per zone: get_layout_template → compute_smart_layout → redesign_zone_layout → validate_zone_layout.\n"
+        "Rules: racks/shelves against walls, desks in clusters, 1-tile circulation paths, "
+        "plants in corners, screens as focal points. Process ALL 13 zones."
     ),
-    expected_output=(
-        "A zone-by-zone report: for each zone, the template used, props rearranged, "
-        "violations found and fixed, final validation status."
-    ),
+    expected_output="Zone-by-zone report: template used, props rearranged, validation status.",
     agent=interior_designer,
     context=[task_layout],
     callback=make_task_callback("Interior Design", "Interior Designer", OUTPUT_DIR),
@@ -372,29 +316,18 @@ task_interior = Task(
 
 task_qa = Task(
     description=(
-        "Review ALL outputs from the architect, interior designer, and art director:\n\n"
-        "1. Verify all props are within zone boundaries\n"
-        "2. Check for prop overlaps (x,y,w,h collisions)\n"
-        "3. Verify each zone's furniture matches its function\n"
-        "4. Check prop density is reasonable\n"
-        "5. Verify all tile references exist\n"
-        "6. Use request_qa_review to submit your QA report for human review"
+        "Validate all outputs: check props within bounds, no overlaps, function match, "
+        "density OK, tile refs exist. Use request_qa_review to submit report."
     ),
-    expected_output="A QA report listing all issues found with fix recommendations.",
+    expected_output="QA report with issues found and fix recommendations.",
     agent=qa_reviewer,
     context=[task_layout, task_interior, task_visuals],
     callback=make_task_callback("QA Review", "QA Reviewer", OUTPUT_DIR),
 )
 
 task_summary = Task(
-    description=(
-        "Compile the final summary of the campus redesign:\n\n"
-        "1. Summarize what changed vs. the previous version\n"
-        "2. List any QA issues that still need attention\n"
-        "3. Provide the file list of outputs ready for integration\n"
-        "4. Write the final design report"
-    ),
-    expected_output="A final markdown report summarizing the campus redesign.",
+    description="Compile final summary: changes vs previous, pending QA issues, output file list. Write design report.",
+    expected_output="Final markdown report summarizing the campus redesign.",
     agent=scrum_master,
     context=[task_layout, task_interior, task_visuals, task_qa],
     callback=make_task_callback("Summary", "Scrum Master", OUTPUT_DIR),
@@ -407,7 +340,7 @@ campus_crew = Crew(
     tasks=[task_research, task_layout, task_interior, task_visuals, task_qa, task_summary],
     process=Process.sequential,
     verbose=True,
-    memory=False,
+    memory=True,
     step_callback=crew_step_callback,  # Real-time AGENT_STEP events for dashboard
 )
 

@@ -430,29 +430,37 @@ class TelegramReporter:
         return None
 
     async def _send(self, text: str, image_path: Path | None = None):
-        """Send message (and optionally image) to Telegram."""
-        try:
-            bot = self._app.bot if self._app else None
-            if not bot:
-                from telegram import Bot
-                bot = Bot(token=self.token)
+        """Send message (and optionally image) to Telegram with retry."""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                bot = self._app.bot if self._app else None
+                if not bot:
+                    from telegram import Bot
+                    bot = Bot(token=self.token)
 
-            if image_path and image_path.exists():
-                with open(image_path, "rb") as f:
-                    await bot.send_photo(
+                if image_path and image_path.exists():
+                    with open(image_path, "rb") as f:
+                        await bot.send_photo(
+                            chat_id=self.chat_id,
+                            photo=f,
+                            caption=text[:1024],
+                            parse_mode="Markdown",
+                        )
+                else:
+                    await bot.send_message(
                         chat_id=self.chat_id,
-                        photo=f,
-                        caption=text[:1024],
+                        text=text,
                         parse_mode="Markdown",
                     )
-            else:
-                await bot.send_message(
-                    chat_id=self.chat_id,
-                    text=text,
-                    parse_mode="Markdown",
-                )
-        except Exception as e:
-            print(f"[Telegram] Send error: {e}")
+                return  # success
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt  # 1s, 2s
+                    print(f"[Telegram] Send error (retry {attempt+1}/{max_retries} in {wait}s): {e}")
+                    await asyncio.sleep(wait)
+                else:
+                    print(f"[Telegram] Send failed after {max_retries} retries: {e}")
 
 
 # Global instance

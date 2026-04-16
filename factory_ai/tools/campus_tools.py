@@ -14,28 +14,45 @@ from factory_ai.config import (
 )
 
 
+# ─── File Cache (avoids re-reading 5KB+ files on every agent iteration) ────
+_file_cache: dict[str, str] = {}
+
+
+def _cached_read(path: Path) -> str:
+    """Read file with in-memory cache — cleared when crew restarts."""
+    key = str(path)
+    if key not in _file_cache:
+        _file_cache[key] = path.read_text(encoding="utf-8")
+    return _file_cache[key]
+
+
+def clear_file_cache():
+    """Call on crew start to ensure fresh reads."""
+    _file_cache.clear()
+
+
 @tool("read_campus_layout")
 def read_campus_layout() -> str:
     """Read the current campus-layout.ts file (zone definitions and grid)."""
-    return CAMPUS_LAYOUT.read_text(encoding="utf-8")
+    return _cached_read(CAMPUS_LAYOUT)
 
 
 @tool("read_campus_props")
 def read_campus_props() -> str:
     """Read the current campus-props.ts file (all prop placements per zone)."""
-    return CAMPUS_PROPS.read_text(encoding="utf-8")
+    return _cached_read(CAMPUS_PROPS)
 
 
 @tool("read_tile_atlas")
 def read_tile_atlas() -> str:
     """Read the TileAtlas.ts file that maps prop IDs to tile texture files."""
-    return TILE_ATLAS.read_text(encoding="utf-8")
+    return _cached_read(TILE_ATLAS)
 
 
 @tool("read_campus_wander")
 def read_campus_wander() -> str:
     """Read the campus-wander.ts file with wander points for agent movement."""
-    return CAMPUS_WANDER.read_text(encoding="utf-8")
+    return _cached_read(CAMPUS_WANDER)
 
 
 @tool("get_zone_specs")
@@ -94,6 +111,29 @@ def write_zone_props(zone_name: str, props_json: str) -> str:
     except Exception:
         count = "?"
     return f"Zone '{zone_name}' written: {count} props saved to {out}. Call this for each remaining zone."
+
+
+@tool("write_all_zone_props")
+def write_all_zone_props(all_zones_json: str) -> str:
+    """Write props for ALL zones in one call. Pass a JSON object where keys are zone names
+    and values are arrays of prop objects. More efficient than calling write_zone_props 13 times.
+    Example: {"data_center": [{"id":"rack","x":2,"y":2,"w":1,"h":2,"layer":"below","anchors":[]}], "ceo_office": [...]}
+    """
+    out_dir = OUTPUT_DIR / "zones"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        all_zones = json.loads(all_zones_json)
+    except Exception as e:
+        return f"ERROR: Invalid JSON: {e}"
+    combined = OUTPUT_DIR / "all_props.jsonl"
+    written = []
+    for zone_name, props in all_zones.items():
+        out = out_dir / f"{zone_name}.json"
+        out.write_text(json.dumps(props, indent=2), encoding="utf-8")
+        with open(combined, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"zone": zone_name, "props": props}) + "\n")
+        written.append(f"{zone_name}({len(props)})")
+    return f"Wrote {len(written)} zones: {', '.join(written)}"
 
 
 @tool("write_campus_props")

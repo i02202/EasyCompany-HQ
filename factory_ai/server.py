@@ -8,12 +8,20 @@ FastAPI server providing:
 - Training status monitoring
 """
 import asyncio
+import io
 import json
 import os
+import sys
 import threading
 import time
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Fix Windows cp1252 encoding — CrewAI uses emojis in its event bus which crash
+# handlers on Windows unless stdout/stderr support Unicode
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Load .env at server startup
 load_dotenv(Path(__file__).parent.parent / ".env", override=True)
@@ -380,6 +388,10 @@ async def start_crew():
             # Callbacks are now wired directly on Task objects in campus_crew.py
             from factory_ai.crews.campus_crew import campus_crew
             from factory_ai.crew_callbacks import DataCollector
+            from factory_ai.tools.campus_tools import clear_file_cache
+
+            # Clear cached file reads from previous runs
+            clear_file_cache()
 
             # Attach data collector for fine-tuning
             collector = DataCollector(OUTPUT_DIR)
@@ -411,6 +423,22 @@ async def stop_crew():
     crew_state["status"] = "idle"
     bus.emit(EventType.CREW_ERROR, {"error": "Stopped by user"})
     return {"status": "stopped"}
+
+
+@app.post("/api/reset")
+async def reset_state():
+    """Reset server state to idle without restarting the process."""
+    crew_state["status"] = "idle"
+    crew_state["current_agent"] = None
+    crew_state["current_task"] = None
+    crew_state["progress"] = 0
+    crew_state["tasks_completed"] = 0
+    crew_state["start_time"] = None
+    crew_state["training"]["status"] = "idle"
+    crew_state["training"]["examples_collected"] = 0
+    crew_state["training"]["epochs_done"] = 0
+    crew_state["training"]["loss"] = None
+    return {"status": "reset"}
 
 
 # ─── Dashboard Frontend ───────────────────────────────────────────────────
