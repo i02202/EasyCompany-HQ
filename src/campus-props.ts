@@ -118,6 +118,24 @@ export const coworkProps: PropPlacement[] = [
   { id: "storage_locker", x: 11, y: 17, w: 3, h: 0.5, layer: 'below', anchors: [] },
 ];
 
+// ─── Architect's Office (rows 34-38, cols 4-14) ───
+export const architectProps: PropPlacement[] = [
+  // Top row: monitors wall
+  { id: 'architect_monitors', x: 5, y: 34, w: 4, h: 2, layer: 'below', anchors: [] },
+  { id: 'architect_monitors', x: 10, y: 34, w: 4, h: 2, layer: 'below', anchors: [] },
+  // Center: the architect's desk
+  { id: 'desk_monitor', x: 8, y: 36, w: 2, h: 1, layer: 'below', anchors: [
+    { name: 'architect_seat', ox: 1, oy: 1.5, type: 'work' },
+  ]},
+  { id: 'ergonomic_chair', x: 8.5, y: 37.5, w: 1, h: 1, layer: 'above', anchors: [] },
+  // Data cables running along the edges
+  { id: 'data_cables', x: 4.5, y: 36, w: 2, h: 2, layer: 'below', anchors: [] },
+  { id: 'data_cables', x: 12.5, y: 36, w: 2, h: 2, layer: 'below', anchors: [] },
+  // Bottom: more data cables
+  { id: 'data_cables', x: 6, y: 38, w: 3, h: 1, layer: 'below', anchors: [] },
+  { id: 'data_cables', x: 10, y: 38, w: 3, h: 1, layer: 'below', anchors: [] },
+];
+
 // ─── Ceo Office (rows 11-18, cols 16-22) ───
 export const ceoProps: PropPlacement[] = [
   { id: "executive_desk", x: 17, y: 12, w: 3.5, h: 2, layer: 'below', anchors: [{ name: "ceo_desk", ox: 1.75, oy: 2.5, type: 'work' }] },
