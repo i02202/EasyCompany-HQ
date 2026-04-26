@@ -45,6 +45,15 @@ from factory_ai.config import OLLAMA_BASE_URL
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 GATEWAY_PORT = 6000
+# Default Ollama options — critical: num_ctx controls VRAM usage
+# Without this, models default to their full context (gemma3: 131k → CPU fallback)
+# 16384 is needed for multi-agent crews: each agent receives previous outputs as context.
+# qwen3:8b at 16K ctx uses ~6GB VRAM (KV cache scales linearly with context).
+DEFAULT_OLLAMA_OPTIONS = {"num_ctx": 16384}
+
+# Ollama HTTP timeout — must accommodate slow inference on modest hardware.
+# qwen3:8b on RTX 4060 with large context can take 10-15 min for one call.
+OLLAMA_HTTP_TIMEOUT = 1200  # 20 minutes
 
 # Models known to support native tool calling in Ollama
 # These get passed through WITHOUT prompt injection
@@ -325,7 +334,7 @@ def _proxy_to_ollama(endpoint: str, payload: dict | None = None, method: str = "
         req = urllib.request.Request(url, method=method)
 
     try:
-        with urllib.request.urlopen(req, timeout=600) as resp:
+        with urllib.request.urlopen(req, timeout=OLLAMA_HTTP_TIMEOUT) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
@@ -372,7 +381,7 @@ async def chat_completions(request: Request):
     ollama_payload: dict[str, Any] = {
         "model": ollama_model,
         "stream": False,  # We handle streaming separately if needed
-        "options": body.get("extra_body", {}).get("options", {}),
+        "options": {**DEFAULT_OLLAMA_OPTIONS, **body.get("extra_body", {}).get("options", {})},
     }
 
     if needs_injection:

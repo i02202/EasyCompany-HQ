@@ -23,6 +23,20 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env", override=True)
 
 from crewai import Agent, Task, Crew, Process, LLM
 
+# Fix httpx pool timeout — LiteLLM uses httpx internally but defaults pool=5s,
+# which kills connections during long Ollama inferences (20-90s).
+# We set both sync and async clients because CrewAI uses both paths internally.
+# Verified by reading litellm/llms/openai/common_utils.py (1.83.0):
+#   _get_sync_http_client()  → returns litellm.client_session if not None
+#   _get_async_http_client() → returns litellm.aclient_session if not None
+import httpx
+import litellm
+# 1200s aligns with Gateway's OLLAMA_HTTP_TIMEOUT — qwen3:8b on RTX 4060 with
+# 16K context can take 10-15 min for the first call of each agent (cumulative context grows).
+_HTTPX_TIMEOUT = httpx.Timeout(1200.0, connect=10.0, read=1200.0, write=30.0, pool=1200.0)
+litellm.client_session = httpx.Client(timeout=_HTTPX_TIMEOUT)
+litellm.aclient_session = httpx.AsyncClient(timeout=_HTTPX_TIMEOUT)
+
 from factory_ai.config import OLLAMA_BASE_URL, OLLAMA_MODEL, ZONES, OUTPUT_DIR, GATEWAY_URL, GATEWAY_ENABLED
 from factory_ai.events import bus, EventType
 from factory_ai.crew_callbacks import crew_step_callback, make_task_callback
@@ -292,7 +306,7 @@ campus_crew = Crew(
     tasks=[task_research, task_layout, task_interior, task_visuals, task_qa, task_summary],
     process=Process.sequential,
     verbose=True,
-    memory=True,
+    memory=False,  # Disabled: requires /v1/embeddings (not in Gateway). We use MemPalace instead.
     step_callback=crew_step_callback,  # Real-time AGENT_STEP events for dashboard
 )
 
