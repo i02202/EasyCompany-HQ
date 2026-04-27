@@ -116,14 +116,39 @@ FURNITURE_DIMENSIONS = {
 }
 
 
+_SEARCH_POOL = None
+_SEARCH_TIMEOUT_S = 5  # DDGS hangs frequently — bail fast and use curated fallback.
+
+
 def _try_search(query: str, max_results: int = 5) -> list[dict]:
-    """Attempt DDG search, return empty list on failure."""
+    """Attempt DDG search with hard timeout. Returns [] on failure.
+
+    DDGS itself accepts no timeout argument and can hang indefinitely on slow
+    or rate-limited endpoints. Wrapping in a ThreadPoolExecutor.future gives us
+    a portable per-call deadline that works on Windows (unlike signal.alarm).
+    """
     if not HAS_DDG:
         return []
+
+    global _SEARCH_POOL
+    if _SEARCH_POOL is None:
+        from concurrent.futures import ThreadPoolExecutor
+        # max_workers=4 caps parallel DDG calls so Claude's parallel tool use
+        # doesn't open 10 concurrent DDG sockets (which guarantees rate-limit).
+        _SEARCH_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ddgs")
+
+    def _do_search() -> list[dict]:
+        try:
+            with DDGS() as ddgs:
+                return list(ddgs.text(query, max_results=max_results))
+        except Exception:
+            return []
+
     try:
-        with DDGS() as ddgs:
-            return list(ddgs.text(query, max_results=max_results))
+        future = _SEARCH_POOL.submit(_do_search)
+        return future.result(timeout=_SEARCH_TIMEOUT_S)
     except Exception:
+        # TimeoutError, or anything else — fall back silently.
         return []
 
 

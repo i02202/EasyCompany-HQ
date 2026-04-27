@@ -115,27 +115,33 @@ def make_task_callback(task_name: str, agent_name: str, output_dir: Path):
         # Emit TASK_COMPLETE (task just finished — AGENT_START was emitted by step_callback)
         # Note: CrewAI task callbacks fire AFTER task completion, not before
 
-        # Extract result
-        result_text = ""
+        # Extract FULL result — never truncated.
+        # The single result_text=...[:2000] pattern caused a triple-cascade bug:
+        # truncated text leaked into (a) output .txt files, (b) training_data.jsonl
+        # (via DataCollector reading the event payload). Now we keep both:
+        #   result_full     → full output for file + training data
+        #   result_preview  → 2K snippet for dashboard / Telegram cards only
         if hasattr(task_output, 'raw'):
-            result_text = str(task_output.raw)[:2000]
+            result_full = str(task_output.raw)
         elif hasattr(task_output, 'result'):
-            result_text = str(task_output.result)[:2000]
+            result_full = str(task_output.result)
         else:
-            result_text = str(task_output)[:2000]
+            result_full = str(task_output)
+        result_preview = result_full[:2000]
 
-        # Emit TASK_COMPLETE
+        # Emit TASK_COMPLETE — both fields available; consumers pick what they need.
         bus.emit(EventType.TASK_COMPLETE, {
             "task": task_name,
             "agent": agent_name,
-            "result_preview": result_text,
+            "result_preview": result_preview,
+            "result_full": result_full,
         })
 
-        # Save output file
+        # Save FULL output file (no truncation)
         output_file = output_dir / f"{task_name.replace(' ', '_').lower()}_output.txt"
         output_file.parent.mkdir(parents=True, exist_ok=True)
         try:
-            output_file.write_text(result_text, encoding="utf-8")
+            output_file.write_text(result_full, encoding="utf-8")
             bus.emit(EventType.FILE_WRITTEN, {"filename": output_file.name})
         except Exception as e:
             print(f"[Callback] Error saving {output_file.name}: {e}")
@@ -169,10 +175,13 @@ class DataCollector:
     def collect(self, event):
         """EventBus listener that collects training examples."""
         if event.type == EventType.TASK_COMPLETE:
+            # Prefer result_full (untruncated). Fall back to result_preview for
+            # backwards-compat with older event payloads in replayed logs.
+            output = event.data.get("result_full") or event.data.get("result_preview", "")
             example = {
                 "task": event.data.get("task", ""),
                 "agent": event.data.get("agent", ""),
-                "output": event.data.get("result_preview", ""),
+                "output": output,
                 "timestamp": event.timestamp,
             }
             self.examples.append(example)

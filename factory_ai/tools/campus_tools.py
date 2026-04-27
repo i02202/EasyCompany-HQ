@@ -62,6 +62,26 @@ def get_zone_specs() -> str:
     return json.dumps(ZONES, indent=2)
 
 
+@tool("read_zone_research")
+def read_zone_research(zone_name: str) -> str:
+    """Get the Researcher agent's furniture findings for a single zone.
+    Returns {items: [...], placement_notes: "..."} as JSON.
+    Use one call per zone instead of receiving the full research dump as context —
+    keeps Architect prompts under the model's num_ctx ceiling.
+    """
+    path = OUTPUT_DIR / "research_output.txt"
+    if not path.exists():
+        return json.dumps({"error": "research_output.txt not found — Researcher hasn't run yet"})
+    try:
+        data = json.loads(_cached_read(path))
+    except json.JSONDecodeError as e:
+        return json.dumps({"error": f"research_output.txt is not valid JSON: {e}"})
+    zone_data = data.get(zone_name)
+    if zone_data is None:
+        return json.dumps({"error": f"zone '{zone_name}' not in research", "available": list(data.keys())})
+    return json.dumps({"zone": zone_name, **zone_data}, indent=2)
+
+
 @tool("list_available_tiles")
 def list_available_tiles() -> str:
     """List all Pixel Salvaje tile PNG files available in assets/tiles/.

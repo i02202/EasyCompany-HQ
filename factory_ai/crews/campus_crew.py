@@ -42,7 +42,7 @@ from factory_ai.events import bus, EventType
 from factory_ai.crew_callbacks import crew_step_callback, make_task_callback
 from factory_ai.tools.campus_tools import (
     read_campus_layout, read_campus_props, read_tile_atlas,
-    read_campus_wander, get_zone_specs, list_available_tiles,
+    read_campus_wander, get_zone_specs, read_zone_research, list_available_tiles,
     list_asset_packs, write_campus_props, write_zone_props, write_all_zone_props,
     write_tile_atlas, write_tile_mapping, write_design_report, analyze_prop_coverage,
 )
@@ -123,9 +123,16 @@ _validate_setup()
 if USE_CLAUDE and ANTHROPIC_API_KEY:
     # Hybrid mode: Claude for complex reasoning, Ollama for light tasks
     brain_llm = LLM(
-        model="anthropic/claude-sonnet-4-20250514",
+        # Use the alias (without date suffix) so we always get the latest stable
+        # Sonnet 4.x. Hard-coded date strings get retired by Anthropic.
+        model="anthropic/claude-sonnet-4-5",
         api_key=ANTHROPIC_API_KEY,
         temperature=0.7,
+        # 429 rate-limit handling: LiteLLM auto-respects Anthropic's Retry-After
+        # header. With tier-1 default (30K input tokens/min), the Architect's
+        # cumulative-context calls easily exceed quota — this lets us recover
+        # instead of crashing the crew on first hit.
+        num_retries=5,
     )
     tool_llm = LLM(
         model=f"ollama/{OLLAMA_MODEL}",
@@ -143,7 +150,9 @@ elif GATEWAY_ENABLED:
         base_url=f"{GATEWAY_URL}/v1",
         api_key="not-needed",             # Gateway doesn't require auth
         temperature=0.7,
-        timeout=600,
+        # Must exceed Gateway's OLLAMA_HTTP_TIMEOUT (1200s). LiteLLM retries 3×;
+        # at timeout=600 a single stuck call burns 30 min before crew_error fires.
+        timeout=1800,
     )
     # With gateway, gemma3 can do tools — no need for separate tool_llm
     tool_llm = brain_llm
@@ -178,6 +187,7 @@ register_tools({
     "read_tile_atlas": read_tile_atlas,
     "read_campus_wander": read_campus_wander,
     "get_zone_specs": get_zone_specs,
+    "read_zone_research": read_zone_research,
     "list_available_tiles": list_available_tiles,
     "list_asset_packs": list_asset_packs,
     "write_campus_props": write_campus_props,
@@ -240,16 +250,20 @@ task_research = Task(
 
 task_layout = Task(
     description=(
-        "Redesign prop placements for all 13 zones using the research findings.\n"
-        "1. Read campus-props.ts and campus-layout.ts, analyze coverage\n"
-        "2. Design layout per zone: realistic proportions, no overlaps, walkable paths\n"
-        "3. Use write_zone_props for each zone (13 calls)\n"
-        "4. Use request_layout_review to submit for approval\n"
-        "Props must be within zone bounds. Corridors (rows 9-10, 19, 25, 32-33) stay empty."
+        "Design prop placements for all 13 zones, ONE ZONE AT A TIME to keep prompts small.\n"
+        "Zones: data_center, auditorium, noc_war_room, scrum_room, open_cowork, ceo_office, "
+        "huddle_pods, snack_bar, cafe, gaming_lounge, terrace, green_area, architect.\n\n"
+        "Per zone: call read_zone_research(zone) → get furniture list + placement_notes → "
+        "design layout with realistic proportions, no overlaps, walkable paths → "
+        "call write_zone_props(zone, props_json).\n\n"
+        "Constraints: props within zone bounds (use get_zone_specs once if needed); "
+        "corridors at rows 9-10, 19, 25, 32-33 stay empty.\n\n"
+        "After all 13 zones written, call request_layout_review."
     ),
     expected_output="All 13 zones saved via write_zone_props + layout review submitted.",
     agent=architect,
-    context=[task_research],
+    # NO context=[task_research] on purpose — Architect pulls per-zone slices via
+    # read_zone_research instead. Keeps prompt under num_ctx (12288) at every iter.
     callback=make_task_callback("Layout", "Architect", OUTPUT_DIR),
 )
 

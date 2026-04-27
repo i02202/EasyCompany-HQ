@@ -45,11 +45,14 @@ from factory_ai.config import OLLAMA_BASE_URL
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 GATEWAY_PORT = 6000
-# Default Ollama options — critical: num_ctx controls VRAM usage
-# Without this, models default to their full context (gemma3: 131k → CPU fallback)
-# 16384 is needed for multi-agent crews: each agent receives previous outputs as context.
-# qwen3:8b at 16K ctx uses ~6GB VRAM (KV cache scales linearly with context).
-DEFAULT_OLLAMA_OPTIONS = {"num_ctx": 16384}
+# Default Ollama options — critical: num_ctx controls VRAM usage.
+# Hardware-realistic ceiling for qwen3:8b on RTX 4060 (8GB VRAM):
+#   - 16384: ~7.0GB needed → spills to CPU, 30min runs with 0 tokens
+#   - 12288: ~6.6GB needed → works ONLY when other apps free up VRAM (~6.5GB)
+#   - 8192:  ~6.2GB needed → robust against background apps eating 1-2GB VRAM
+# Multi-agent context cascade is mitigated by the read_zone_research pattern
+# (agents pull per-zone slices instead of receiving full upstream output).
+DEFAULT_OLLAMA_OPTIONS = {"num_ctx": 8192}
 
 # Ollama HTTP timeout — must accommodate slow inference on modest hardware.
 # qwen3:8b on RTX 4060 with large context can take 10-15 min for one call.
