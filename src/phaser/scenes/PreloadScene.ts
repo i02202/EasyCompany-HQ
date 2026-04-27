@@ -1,10 +1,11 @@
 /**
- * PreloadScene — loads assets and shows a loading bar.
+ * PreloadScene — loads Pixel Salvaje tile textures + loading indicator.
  *
- * Phase A: No external assets to load (floor is drawn via Graphics).
- * Phase B+: Will load texture atlases for SmallScaleInt tiles and characters.
+ * Phase B: Loads modern office furniture tiles from assets/tiles/.
+ * Phase C+: Will also load character sprite atlases here.
  */
 import Phaser from 'phaser';
+import { getAllTileEntries } from '../data/TileAtlas';
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -41,8 +42,13 @@ export class PreloadScene extends Phaser.Scene {
       label.destroy();
     });
 
-    // Phase B: load atlases here
-    // this.load.atlas('furniture', 'atlas/furniture.png', 'atlas/furniture.json');
+    // Load all Pixel Salvaje tile textures
+    const tiles = getAllTileEntries();
+    for (const entry of tiles) {
+      this.load.image(entry.textureKey, entry.file);
+    }
+
+    // Phase C: load character atlases here
     // this.load.atlas('characters', 'atlas/characters.png', 'atlas/characters.json');
   }
 
