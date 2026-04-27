@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""
+AUTO-GENERATED converter: factory_ai/output/zones/*.json + tile_mappings.json → src/campus-props.ts
+Run from project root: python scripts/convert-zones-to-ts.py
+"""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+# ── Paths ──────────────────────────────────────────────────────────────────────
+PROJECT_ROOT = Path(__file__).parent.parent
+ZONES_DIR = PROJECT_ROOT / "factory_ai" / "output" / "zones"
+TILE_MAPPINGS_FILE = PROJECT_ROOT / "factory_ai" / "output" / "tile_mappings.json"
+OUT_FILE = PROJECT_ROOT / "src" / "campus-props.ts"
+
+# ── Import ZONES from factory_ai.config (authoritative grid ranges) ────────────
+sys.path.insert(0, str(PROJECT_ROOT))
+from factory_ai.config import ZONES  # noqa: E402
+
+# ── Zone → TypeScript const name mapping ──────────────────────────────────────
+ZONE_CONST_NAMES = {
+    "data_center":   "dataCenterProps",
+    "auditorium":    "auditoriumProps",
+    "noc_war_room":  "nocProps",
+    "scrum_room":    "scrumProps",
+    "open_cowork":   "coworkProps",
+    "ceo_office":    "ceoProps",
+    "huddle_pods":   "huddleProps",
+    "snack_bar":     "snackProps",
+    "cafe":          "cafeProps",
+    "gaming_lounge": "gamingProps",
+    "terrace":       "terraceProps",
+    "green_area":    "greenProps",
+    "architect":     "architectProps",
+}
+
+# Canonical anchor type values
+VALID_ANCHOR_TYPES = {"work", "rest", "social", "utility", "wander"}
+VALID_LAYERS = {"below", "above"}
+
+
+def sanitize_layer(val) -> str:
+    if val in VALID_LAYERS:
+        return val
+    return "below"
+
+
+def sanitize_anchor_type(val) -> str:
+    if val in VALID_ANCHOR_TYPES:
+        return val
+    return "utility"
+
+
+def format_num(v) -> str:
+    """Format a number as an integer if it has no fractional part, else as float."""
+    if isinstance(v, float) and v == int(v):
+        return str(int(v))
+    return repr(v)
+
+
+def format_anchor(a: dict, indent: str) -> str:
+    name = a.get("name", "unnamed")
+    ox = a.get("ox", 0)
+    oy = a.get("oy", 0)
+    atype = sanitize_anchor_type(a.get("type", "utility"))
+    return (
+        f"{indent}  {{ name: {json.dumps(name)}, "
+        f"ox: {format_num(ox)}, oy: {format_num(oy)}, type: '{atype}' }}"
+    )
+
+
+def format_prop(prop: dict, indent: str = "  ") -> str:
+    prop_id = prop.get("id", "unknown")
+    x = prop.get("x", 0)
+    y = prop.get("y", 0)
+    w = prop.get("w", 1)
+    h = prop.get("h", 1)
+    layer = sanitize_layer(prop.get("layer", "below"))
+    anchors = prop.get("anchors", [])
+
+    # Build anchors string
+    if not anchors:
+        anchors_str = "[]"
+    elif len(anchors) == 1:
+        a = anchors[0]
+        name = a.get("name", "unnamed")
+        ox = a.get("ox", 0)
+        oy = a.get("oy", 0)
+        atype = sanitize_anchor_type(a.get("type", "utility"))
+        anchors_str = (
+            f"[{{ name: {json.dumps(name)}, "
+            f"ox: {format_num(ox)}, oy: {format_num(oy)}, type: '{atype}' }}]"
+        )
+    else:
+        lines = ["\n"]
+        for a in anchors:
+            lines.append(format_anchor(a, indent) + ",\n")
+        lines.append(f"{indent}]")
+        anchors_str = "".join(lines)[:-1]  # strip trailing \n before ]
+        # Rebuild cleanly
+        inner = ",\n".join(format_anchor(a, indent) for a in anchors)
+        anchors_str = f"[\n{inner},\n{indent}  ]"
+
+    return (
+        f"{indent}{{ id: {json.dumps(prop_id)}, "
+        f"x: {format_num(x)}, y: {format_num(y)}, "
+        f"w: {format_num(w)}, h: {format_num(h)}, "
+        f"layer: '{layer}', anchors: {anchors_str} }}"
+    )
+
+
+def zone_label(zone_key: str) -> str:
+    cfg = ZONES[zone_key]
+    rows = cfg["rows"]
+    cols = cfg["cols"]
+    pretty = zone_key.replace("_", " ").title()
+    return f"─── {pretty} (rows {rows[0]}-{rows[1]}, cols {cols[0]}-{cols[1]}) ───"
+
+
+def main():
+    print(f"Reading zones from: {ZONES_DIR}")
+    print(f"Reading tile mappings from: {TILE_MAPPINGS_FILE}")
+
+    # Load tile mappings
+    with open(TILE_MAPPINGS_FILE) as f:
+        tile_mappings: dict = json.load(f)
+    print(f"  Loaded {len(tile_mappings)} tile mappings")
+
+    # Build zone data in canonical order
+    # Order: same as ZONE_CONST_NAMES insertion order (Python 3.7+)
+    zone_order = list(ZONE_CONST_NAMES.keys())
+
+    zone_props: dict[str, list] = {}
+    total_props = 0
+    for zone_key in zone_order:
+        json_path = ZONES_DIR / f"{zone_key}.json"
+        if not json_path.exists():
+            print(f"  WARNING: {json_path} not found — using empty list")
+            zone_props[zone_key] = []
+            continue
+        with open(json_path) as f:
+            props = json.load(f)
+        zone_props[zone_key] = props
+        print(f"  {zone_key}: {len(props)} props")
+        total_props += len(props)
+
+    print(f"  Total props across all zones: {total_props}")
+
+    # ── Generate TypeScript ────────────────────────────────────────────────────
+    lines: list[str] = []
+
+    lines.append("// AUTO-GENERATED by scripts/convert-zones-to-ts.py")
+    lines.append("// Source: factory_ai/output/zones/*.json + tile_mappings.json")
+    lines.append("// DO NOT EDIT by hand — re-run the converter to regenerate.")
+    lines.append("")
+
+    # Interface
+    lines.append("export interface PropPlacement {")
+    lines.append("  id: string;")
+    lines.append("  x: number;")
+    lines.append("  y: number;")
+    lines.append("  w: number;")
+    lines.append("  h: number;")
+    lines.append("  layer: 'below' | 'above';")
+    lines.append(
+        "  anchors: { name: string; ox: number; oy: number; "
+        "type: 'work' | 'rest' | 'social' | 'utility' | 'wander' }[];"
+    )
+    lines.append("}")
+    lines.append("")
+
+    const_names: list[str] = []
+
+    for zone_key in zone_order:
+        const_name = ZONE_CONST_NAMES[zone_key]
+        const_names.append(const_name)
+        props = zone_props[zone_key]
+
+        lines.append(f"// {zone_label(zone_key)}")
+        lines.append(f"export const {const_name}: PropPlacement[] = [")
+        for prop in props:
+            lines.append(format_prop(prop) + ",")
+        lines.append("];")
+        lines.append("")
+
+    # allCampusProps combining all zones
+    lines.append("export const allCampusProps: PropPlacement[] = [")
+    for const_name in const_names:
+        lines.append(f"  ...{const_name},")
+    lines.append("];")
+    lines.append("")
+
+    # Backward-compat alias for code that still imports ALL_PROPS
+    lines.append("/** @deprecated Use allCampusProps instead */")
+    lines.append("export const ALL_PROPS = allCampusProps;")
+    lines.append("")
+
+    # tileMap
+    lines.append("export const tileMap: Record<string, string> = {")
+    for prop_id, texture in tile_mappings.items():
+        lines.append(f"  {json.dumps(prop_id)}: {json.dumps(texture)},")
+    lines.append("};")
+    lines.append("")
+
+    output = "\n".join(lines)
+
+    with open(OUT_FILE, "w", encoding="utf-8") as f:
+        f.write(output)
+
+    print(f"\nWrote {OUT_FILE}")
+    print(f"  Lines: {len(lines)}")
+    print(f"  Zones: {len(zone_order)}")
+    print(f"  Total props: {total_props}")
+    print(f"  Tile mappings: {len(tile_mappings)}")
+
+
+if __name__ == "__main__":
+    main()

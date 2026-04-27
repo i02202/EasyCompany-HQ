@@ -2,10 +2,17 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "miniverse",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 5173
+      "name": "phaser-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host"],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "factory-dashboard",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "factory_ai.run", "--port", "8801"],
+      "port": 8801
     }
   ]
 }

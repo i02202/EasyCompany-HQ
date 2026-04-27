@@ -12,7 +12,8 @@
   "dependencies": {
     "@miniverse/core": "^0.2.6",
     "@miniverse/server": "^0.2.8",
-    "@pixellab-code/pixellab": "^1.0.2"
+    "@pixellab-code/pixellab": "^1.0.2",
+    "phaser": "^3.90.0"
   },
   "devDependencies": {
     "@miniverse/generate": "^0.2.0",

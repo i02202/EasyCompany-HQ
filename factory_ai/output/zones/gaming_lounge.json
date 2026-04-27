@@ -1,0 +1,143 @@
+[
+  {
+    "id": "vending_machine",
+    "x": 16,
+    "y": 21,
+    "w": 0.8,
+    "h": 1,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "gaming_pc_1",
+    "x": 17,
+    "y": 22,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "gaming"
+      }
+    ]
+  },
+  {
+    "id": "gaming_pc_2",
+    "x": 19,
+    "y": 22,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "gaming"
+      }
+    ]
+  },
+  {
+    "id": "gaming_pc_3",
+    "x": 21,
+    "y": 22,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "gaming"
+      }
+    ]
+  },
+  {
+    "id": "gaming_pc_4",
+    "x": 23,
+    "y": 22,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "gaming"
+      }
+    ]
+  },
+  {
+    "id": "gaming_pc_5",
+    "x": 25,
+    "y": 22,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "gaming"
+      }
+    ]
+  },
+  {
+    "id": "gaming_pc_6",
+    "x": 27,
+    "y": 22,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "gaming"
+      }
+    ]
+  },
+  {
+    "id": "gaming_chair_1",
+    "x": 29,
+    "y": 22,
+    "w": 0.6,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "gaming_chair_2",
+    "x": 31,
+    "y": 22,
+    "w": 0.6,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "gaming_chair_3",
+    "x": 33,
+    "y": 22,
+    "w": 0.6,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "gaming_chair_4",
+    "x": 35,
+    "y": 22,
+    "w": 0.6,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": []
+  }
+]
