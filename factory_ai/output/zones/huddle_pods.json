@@ -1,0 +1,210 @@
+[
+  {
+    "id": "pod_wall_1",
+    "x": 26,
+    "y": 13,
+    "w": 0.1,
+    "h": 2.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "pod_wall_2",
+    "x": 28,
+    "y": 13,
+    "w": 0.1,
+    "h": 2.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "pod_wall_3",
+    "x": 30,
+    "y": 13,
+    "w": 0.1,
+    "h": 2.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "pod_wall_4",
+    "x": 32,
+    "y": 13,
+    "w": 0.1,
+    "h": 2.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "pod_wall_5",
+    "x": 34,
+    "y": 13,
+    "w": 0.1,
+    "h": 2.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "pod_wall_6",
+    "x": 36,
+    "y": 13,
+    "w": 0.1,
+    "h": 2.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "pod_wall_7",
+    "x": 26,
+    "y": 15,
+    "w": 0.1,
+    "h": 2.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "pod_wall_8",
+    "x": 28,
+    "y": 15,
+    "w": 0.1,
+    "h": 2.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "round_table_1",
+    "x": 30,
+    "y": 15,
+    "w": 1.2,
+    "h": 1.2,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat1",
+        "ox": 0.3,
+        "oy": 0.6,
+        "type": "meeting"
+      },
+      {
+        "name": "seat2",
+        "ox": 0.9,
+        "oy": 0.6,
+        "type": "meeting"
+      },
+      {
+        "name": "seat3",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "meeting"
+      },
+      {
+        "name": "seat4",
+        "ox": 0.6,
+        "oy": 0.9,
+        "type": "meeting"
+      }
+    ]
+  },
+  {
+    "id": "round_table_2",
+    "x": 32,
+    "y": 15,
+    "w": 1.2,
+    "h": 1.2,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat1",
+        "ox": 0.3,
+        "oy": 0.6,
+        "type": "meeting"
+      },
+      {
+        "name": "seat2",
+        "ox": 0.9,
+        "oy": 0.6,
+        "type": "meeting"
+      },
+      {
+        "name": "seat3",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "meeting"
+      },
+      {
+        "name": "seat4",
+        "ox": 0.6,
+        "oy": 0.9,
+        "type": "meeting"
+      }
+    ]
+  },
+  {
+    "id": "round_table_3",
+    "x": 34,
+    "y": 15,
+    "w": 1.2,
+    "h": 1.2,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat1",
+        "ox": 0.3,
+        "oy": 0.6,
+        "type": "meeting"
+      },
+      {
+        "name": "seat2",
+        "ox": 0.9,
+        "oy": 0.6,
+        "type": "meeting"
+      },
+      {
+        "name": "seat3",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "meeting"
+      },
+      {
+        "name": "seat4",
+        "ox": 0.6,
+        "oy": 0.9,
+        "type": "meeting"
+      }
+    ]
+  },
+  {
+    "id": "round_table_4",
+    "x": 36,
+    "y": 15,
+    "w": 1.2,
+    "h": 1.2,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat1",
+        "ox": 0.3,
+        "oy": 0.6,
+        "type": "meeting"
+      },
+      {
+        "name": "seat2",
+        "ox": 0.9,
+        "oy": 0.6,
+        "type": "meeting"
+      },
+      {
+        "name": "seat3",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "meeting"
+      },
+      {
+        "name": "seat4",
+        "ox": 0.6,
+        "oy": 0.9,
+        "type": "meeting"
+      }
+    ]
+  }
+]

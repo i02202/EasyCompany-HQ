@@ -1,0 +1,38 @@
+[
+  {
+    "id": "whiteboard_wall_1",
+    "x": 33,
+    "y": 3,
+    "w": 2.4,
+    "h": 0.3,
+    "layer": "above",
+    "anchors": []
+  },
+  {
+    "id": "whiteboard_wall_2",
+    "x": 35,
+    "y": 3,
+    "w": 2.4,
+    "h": 0.3,
+    "layer": "above",
+    "anchors": []
+  },
+  {
+    "id": "sprint_board_1",
+    "x": 33,
+    "y": 5,
+    "w": 1.8,
+    "h": 0.3,
+    "layer": "above",
+    "anchors": []
+  },
+  {
+    "id": "sprint_board_2",
+    "x": 35,
+    "y": 5,
+    "w": 1.8,
+    "h": 0.3,
+    "layer": "above",
+    "anchors": []
+  }
+]

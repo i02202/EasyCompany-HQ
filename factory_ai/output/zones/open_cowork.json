@@ -1,0 +1,134 @@
+[
+  {
+    "id": "hot_desk_1",
+    "x": 3,
+    "y": 13,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": "hot_desk_2",
+    "x": 5,
+    "y": 13,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": "hot_desk_3",
+    "x": 7,
+    "y": 13,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": "hot_desk_4",
+    "x": 9,
+    "y": 13,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": "hot_desk_5",
+    "x": 11,
+    "y": 13,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": "hot_desk_6",
+    "x": 3,
+    "y": 15,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.6,
+        "oy": 0.3,
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": "ergo_chair_1",
+    "x": 5,
+    "y": 15,
+    "w": 0.6,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "ergo_chair_2",
+    "x": 7,
+    "y": 15,
+    "w": 0.6,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "ergo_chair_3",
+    "x": 9,
+    "y": 15,
+    "w": 0.6,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "ergo_chair_4",
+    "x": 11,
+    "y": 15,
+    "w": 0.6,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": []
+  }
+]

@@ -1,0 +1,11 @@
+[
+  {
+    "id": "l_counter",
+    "x": 3,
+    "y": 22,
+    "w": 2.5,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": []
+  }
+]

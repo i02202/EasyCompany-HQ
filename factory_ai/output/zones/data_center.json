@@ -1,0 +1,72 @@
+[
+  {
+    "id": "fire_suppression_panel",
+    "x": 2,
+    "y": 2,
+    "w": 0.6,
+    "h": 0.4,
+    "layer": "above",
+    "anchors": []
+  },
+  {
+    "id": "monitoring_desk",
+    "x": 3,
+    "y": 3,
+    "w": 1.8,
+    "h": 0.8,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.9,
+        "oy": 0.4,
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": "server_rack_1",
+    "x": 5,
+    "y": 3,
+    "w": 0.6,
+    "h": 1.07,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "server_rack_2",
+    "x": 7,
+    "y": 3,
+    "w": 0.6,
+    "h": 1.07,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "server_rack_3",
+    "x": 3,
+    "y": 5,
+    "w": 0.6,
+    "h": 1.07,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "server_rack_4",
+    "x": 5,
+    "y": 5,
+    "w": 0.6,
+    "h": 1.07,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "server_rack_5",
+    "x": 7,
+    "y": 5,
+    "w": 0.6,
+    "h": 1.07,
+    "layer": "below",
+    "anchors": []
+  }
+]

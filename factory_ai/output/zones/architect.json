@@ -1,0 +1,81 @@
+[
+  {
+    "id": "material_library",
+    "x": 5,
+    "y": 35,
+    "w": 0.8,
+    "h": 1.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "meeting_table",
+    "x": 6,
+    "y": 36,
+    "w": 1.5,
+    "h": 0.8,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat1",
+        "ox": 0.4,
+        "oy": 0.4,
+        "type": "meeting"
+      },
+      {
+        "name": "seat2",
+        "ox": 1.1,
+        "oy": 0.4,
+        "type": "meeting"
+      }
+    ]
+  },
+  {
+    "id": "drafting_table_1",
+    "x": 8,
+    "y": 36,
+    "w": 1.5,
+    "h": 1,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.75,
+        "oy": 0.5,
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": "drafting_table_2",
+    "x": 10,
+    "y": 36,
+    "w": 1.5,
+    "h": 1,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.75,
+        "oy": 0.5,
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": "drafting_table_3",
+    "x": 12,
+    "y": 36,
+    "w": 1.5,
+    "h": 1,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 0.75,
+        "oy": 0.5,
+        "type": "work"
+      }
+    ]
+  }
+]

@@ -1,0 +1,159 @@
+[
+  {
+    "id": "herb_garden",
+    "x": 17,
+    "y": 27,
+    "w": 1.5,
+    "h": 1,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "mature_tree_1",
+    "x": 18,
+    "y": 28,
+    "w": 1.5,
+    "h": 1.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "mature_tree_2",
+    "x": 20,
+    "y": 28,
+    "w": 1.5,
+    "h": 1.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "mature_tree_3",
+    "x": 22,
+    "y": 28,
+    "w": 1.5,
+    "h": 1.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "mature_tree_4",
+    "x": 24,
+    "y": 28,
+    "w": 1.5,
+    "h": 1.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "mature_tree_5",
+    "x": 26,
+    "y": 28,
+    "w": 1.5,
+    "h": 1.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "mature_tree_6",
+    "x": 28,
+    "y": 28,
+    "w": 1.5,
+    "h": 1.5,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "garden_bench_1",
+    "x": 30,
+    "y": 28,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "sit1",
+        "ox": 0.3,
+        "oy": 0.3,
+        "type": "sit"
+      },
+      {
+        "name": "sit2",
+        "ox": 0.9,
+        "oy": 0.3,
+        "type": "sit"
+      }
+    ]
+  },
+  {
+    "id": "garden_bench_2",
+    "x": 32,
+    "y": 28,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "sit1",
+        "ox": 0.3,
+        "oy": 0.3,
+        "type": "sit"
+      },
+      {
+        "name": "sit2",
+        "ox": 0.9,
+        "oy": 0.3,
+        "type": "sit"
+      }
+    ]
+  },
+  {
+    "id": "garden_bench_3",
+    "x": 34,
+    "y": 28,
+    "w": 1.2,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "sit1",
+        "ox": 0.3,
+        "oy": 0.3,
+        "type": "sit"
+      },
+      {
+        "name": "sit2",
+        "ox": 0.9,
+        "oy": 0.3,
+        "type": "sit"
+      }
+    ]
+  },
+  {
+    "id": "meditation_circle",
+    "x": 36,
+    "y": 28,
+    "w": 2,
+    "h": 2,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "sit1",
+        "ox": 0.5,
+        "oy": 0.5,
+        "type": "meditation"
+      },
+      {
+        "name": "sit2",
+        "ox": 1,
+        "oy": 1,
+        "type": "meditation"
+      },
+      {
+        "name": "sit3",
+        "ox": 1.5,
+        "oy": 0.5,
+        "type": "meditation"
+      }
+    ]
+  }
+]

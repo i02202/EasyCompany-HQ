@@ -1,0 +1,103 @@
+[
+  {
+    "id": "executive_desk",
+    "x": 18,
+    "y": 13,
+    "w": 2,
+    "h": 1,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat",
+        "ox": 1,
+        "oy": 0.5,
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": "meeting_table",
+    "x": 18,
+    "y": 16,
+    "w": 1.5,
+    "h": 0.8,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat1",
+        "ox": 0.4,
+        "oy": 0.4,
+        "type": "meeting"
+      },
+      {
+        "name": "seat2",
+        "ox": 1.1,
+        "oy": 0.4,
+        "type": "meeting"
+      }
+    ]
+  },
+  {
+    "id": "executive_chair",
+    "x": 18,
+    "y": 14,
+    "w": 0.7,
+    "h": 0.7,
+    "layer": "below",
+    "anchors": []
+  },
+  {
+    "id": "guest_chair_1",
+    "x": 20,
+    "y": 13,
+    "w": 0.6,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "sit",
+        "ox": 0.3,
+        "oy": 0.3,
+        "type": "guest"
+      }
+    ]
+  },
+  {
+    "id": "guest_chair_2",
+    "x": 18,
+    "y": 15,
+    "w": 0.6,
+    "h": 0.6,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "sit",
+        "ox": 0.3,
+        "oy": 0.3,
+        "type": "guest"
+      }
+    ]
+  },
+  {
+    "id": "l_shaped_sofa",
+    "x": 20,
+    "y": 15,
+    "w": 3,
+    "h": 1.5,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "sit1",
+        "ox": 0.75,
+        "oy": 0.75,
+        "type": "lounge"
+      },
+      {
+        "name": "sit2",
+        "ox": 2.25,
+        "oy": 0.75,
+        "type": "lounge"
+      }
+    ]
+  }
+]

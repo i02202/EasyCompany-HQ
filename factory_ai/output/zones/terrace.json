@@ -1,0 +1,104 @@
+[
+  {
+    "id": "bar_stool",
+    "x": 3,
+    "y": 28,
+    "w": 0.4,
+    "h": 0.4,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "sit",
+        "ox": 0.2,
+        "oy": 0.2,
+        "type": "sit"
+      }
+    ]
+  },
+  {
+    "id": "outdoor_dining_set_1",
+    "x": 5,
+    "y": 28,
+    "w": 1.5,
+    "h": 1.5,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat1",
+        "ox": 0.4,
+        "oy": 0.4,
+        "type": "outdoor"
+      },
+      {
+        "name": "seat2",
+        "ox": 1.1,
+        "oy": 0.4,
+        "type": "outdoor"
+      },
+      {
+        "name": "seat3",
+        "ox": 0.4,
+        "oy": 1.1,
+        "type": "outdoor"
+      },
+      {
+        "name": "seat4",
+        "ox": 1.1,
+        "oy": 1.1,
+        "type": "outdoor"
+      }
+    ]
+  },
+  {
+    "id": "outdoor_dining_set_2",
+    "x": 7,
+    "y": 28,
+    "w": 1.5,
+    "h": 1.5,
+    "layer": "below",
+    "anchors": [
+      {
+        "name": "seat1",
+        "ox": 0.4,
+        "oy": 0.4,
+        "type": "outdoor"
+      },
+      {
+        "name": "seat2",
+        "ox": 1.1,
+        "oy": 0.4,
+        "type": "outdoor"
+      },
+      {
+        "name": "seat3",
+        "ox": 0.4,
+        "oy": 1.1,
+        "type": "outdoor"
+      },
+      {
+        "name": "seat4",
+        "ox": 1.1,
+        "oy": 1.1,
+        "type": "outdoor"
+      }
+    ]
+  },
+  {
+    "id": "umbrella_1",
+    "x": 9,
+    "y": 28,
+    "w": 0.3,
+    "h": 0.3,
+    "layer": "above",
+    "anchors": []
+  },
+  {
+    "id": "umbrella_2",
+    "x": 11,
+    "y": 28,
+    "w": 0.3,
+    "h": 0.3,
+    "layer": "above",
+    "anchors": []
+  }
+]

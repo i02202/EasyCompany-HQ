@@ -3,4 +3,25 @@ dist/
 .env
 .env.local
 *.log
+
+# External asset packs (huge — sourced from PixelLab/Pixel Salvaje, not versioned)
 assets/packs/
+
+# Tooling and editor state
+.gitnexus/
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Crew runtime state — gitignore everything in output/ by default,
+# allowlist only the small game-data files the Phaser scene needs.
+factory_ai/memory/store/
+factory_ai/output/*
+factory_ai/output/**/*
+!factory_ai/output/zones/
+!factory_ai/output/zones/*.json
+!factory_ai/output/tile_mappings.json
+!factory_ai/output/design-report.md
